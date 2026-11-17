@@ -1,6 +1,6 @@
 -- Regression tests for migration 20261117100000_security_phase0_hardening.
 begin;
-select plan(14);
+select plan(16);
 
 -- Fixtures: one pending user, one staff user, one admin user.
 insert into auth.users (id, email, raw_app_meta_data, raw_user_meta_data, aud, role)
@@ -59,6 +59,15 @@ select throws_ok(
 -- Admin user
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-4000-8000-0000000000a3","role":"authenticated"}', true);
 select ok(public.is_current_user_admin(), 'an admin profile is recognised');
+select lives_ok(
+  $$ update public.profiles set full_name = 'Edited by admin' where id = '00000000-0000-4000-8000-0000000000a2' $$,
+  'an admin can edit another profile without policy recursion (20261117110000)'
+);
+select is(
+  (select full_name from public.profiles where id = '00000000-0000-4000-8000-0000000000a2'),
+  'Edited by admin',
+  'the admin edit was applied'
+);
 
 -- ── Invite redemption is not callable by end users ────────────────────────
 reset role;
