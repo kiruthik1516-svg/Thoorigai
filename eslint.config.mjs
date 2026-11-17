@@ -42,7 +42,6 @@ export default [
   {
     files: ['app/**/*.{ts,tsx}', 'components/**/*.{ts,tsx}', 'lib/**/*.{ts,tsx}'],
     ignores: [
-      'app/api/verify/**/route.ts',
       'app/api/course-materials/route.ts',
       'app/api/invoices/**/download/route.ts',
       'app/api/ready/route.ts',

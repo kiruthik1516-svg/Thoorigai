@@ -16,17 +16,23 @@ export default function VerificationPage({ params }: { params: Promise<{ code: s
         invoice_number?: string | null
       }
     | { status: 'Invalid' }
+    | { status: 'Unavailable' }
   >({ status: 'Invalid' })
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     const fetchVerification = async () => {
       try {
-        const cleanCode = decodeURIComponent(code).trim()
-        const res = await fetch(`/api/verify/${encodeURIComponent(cleanCode)}`)
+        let cleanCode = code
+        try {
+          cleanCode = decodeURIComponent(code)
+        } catch {
+          // Malformed escape sequence: send the raw segment; the API answers Invalid.
+        }
+        const res = await fetch(`/api/verify/${encodeURIComponent(cleanCode.trim())}`)
         if (!res.ok) {
-          setVerificationResult({ status: 'Invalid' })
-          setLoading(false)
+          // A non-OK response is an outage or throttling, not proof that the document is invalid.
+          setVerificationResult({ status: res.status === 400 || res.status === 404 ? 'Invalid' : 'Unavailable' })
           return
         }
 
@@ -41,7 +47,7 @@ export default function VerificationPage({ params }: { params: Promise<{ code: s
           setVerificationResult({ status: 'Invalid' })
         }
       } catch {
-        setVerificationResult({ status: 'Invalid' })
+        setVerificationResult({ status: 'Unavailable' })
       } finally {
         setLoading(false)
       }
@@ -55,6 +61,26 @@ export default function VerificationPage({ params }: { params: Promise<{ code: s
       <div className="min-h-screen flex flex-col items-center justify-center p-8">
         <div className="animate-spin rounded-full border-4 border-primary/20 border-t-primary w-12 h-12 mb-4"></div>
         <p className="text-gray-500">Verifying...</p>
+      </div>
+    )
+  }
+
+  if (verificationResult.status === 'Unavailable') {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-[var(--bg)] text-center transition-colors">
+        <div className="w-full max-w-md rounded-[26px] bg-[var(--card)] p-8 sm:p-10 border border-[var(--card-border)] shadow-[var(--shadow-card)]">
+          <span className="inline-flex items-center px-3.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-[var(--panel)] text-[var(--text)] border border-[var(--border)] mb-3">
+            Temporarily unavailable
+          </span>
+          <h1 className="text-2xl font-extrabold text-[var(--text-heading)] mb-2">We could not check this document</h1>
+          <p className="text-xs text-[var(--mute)] leading-relaxed mb-6">
+            The verification service did not respond. This says nothing about whether the document is valid. Please try
+            again in a few minutes.
+          </p>
+          <p className="text-[11px] text-[var(--mute)]">
+            If the problem continues, contact the administration at {brand.supportEmail}.
+          </p>
+        </div>
       </div>
     )
   }

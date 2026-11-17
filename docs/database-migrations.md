@@ -26,6 +26,7 @@ The latest migration push transcript supplied by the project owner reported a su
 - `20261004100000_add_google_forms_to_assessments.sql`
 - `20261005150000_fix_service_role_profile_role_checks.sql`
 - `20261010110000_attendance_exempt_status.sql`
+- `20261117100000_security_phase0_hardening.sql`
 
 The older migration files include corrections made before the reported push. Do not edit any migration already recorded in the shared project's migration history; add a new migration instead. Never use `migration repair` to hide a schema mismatch without a reviewed recovery plan.
 

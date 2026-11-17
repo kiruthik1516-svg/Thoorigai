@@ -75,7 +75,7 @@ vi.mock('@/lib/supabase/admin', () => ({
       if (table === 'invite_codes') {
         const query: any = {
           select: () => query,
-          ilike: (_col: string, val: string) => {
+          eq: (_col: string, val: string) => {
             if (val === state.inviteCode?.code) {
               return { maybeSingle: async () => ({ data: state.inviteCode, error: null }) }
             }
@@ -93,6 +93,16 @@ vi.mock('@/lib/supabase/admin', () => ({
         return query
       }
       return { select: () => ({ maybeSingle: async () => ({ data: null }) }) }
+    },
+    // redeem_invite_code consumes the invite and updates the profile role in one transaction.
+    rpc: async (fn: string, args: { p_code: string; p_user_id: string }) => {
+      if (fn !== 'redeem_invite_code') return { data: null, error: { code: '42883', message: 'unknown' } }
+      if (args.p_code !== state.inviteCode?.code) {
+        return { data: null, error: { code: 'P0002', message: 'Invalid invite code.' } }
+      }
+      state.markedUsedCodeId = state.inviteCode.id
+      state.updatedProfile = { role: state.inviteCode.role }
+      return { data: state.inviteCode.role, error: null }
     },
     auth: {
       admin: {
@@ -177,6 +187,34 @@ describe('Redeem Invite & Login Synchronization Flow', () => {
       expect(state.updatedUserMeta).toMatchObject({
         app_metadata: { role: 'admin' },
       })
+    })
+
+    it('rejects a wildcard code without consuming any invite', async () => {
+      const { POST } = await import('@/app/api/auth/redeem-invite/route')
+      const req = new Request('https://app.example.test/api/auth/redeem-invite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: 'test@example.com', password: 'Password123!', code: '%' }),
+      })
+
+      const res = await POST(req)
+      expect(res.status).toBe(400)
+      expect(state.markedUsedCodeId).toBeNull()
+      expect(state.updatedProfile).toBeNull()
+    })
+
+    it('does not accept the former static master passcode', async () => {
+      const { POST } = await import('@/app/api/auth/redeem-invite/route')
+      const req = new Request('https://app.example.test/api/auth/redeem-invite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: 'test@example.com', password: 'Password123!', code: 'THOORIGAI-STAFF' }),
+      })
+
+      const res = await POST(req)
+      expect(res.status).toBe(400)
+      expect(state.updatedProfile).toBeNull()
+      expect(state.updatedUserMeta).toBeNull()
     })
 
     it('returns alreadyActive if user is already an admin redeeming an admin OTP', async () => {

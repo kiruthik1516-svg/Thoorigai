@@ -33,6 +33,8 @@ export interface StudentPrintDossierProps {
   courseDuration?: string | null
   gstRate?: number
   isPortalPrint?: boolean
+  /** Verification code of an issued certificate. Without one, no verification QR is printed. */
+  certificateVerificationCode?: string | null
 }
 
 function formatDate(v?: string | null): string {
@@ -57,6 +59,7 @@ export function StudentPrintDossier({
   courseDuration,
   gstRate = 18,
   isPortalPrint = false,
+  certificateVerificationCode = null,
 }: StudentPrintDossierProps) {
   const balance = differenceRupees(student.total, student.paid)
   const isSettled = balance === 0
@@ -85,7 +88,10 @@ export function StudentPrintDossier({
   const [qrCodeUrl, setQrCodeUrl] = useState<string | null>(null)
   const currentYear = new Date().getFullYear()
   const certId = `TAI-${currentYear}-${String(student.registerId).padStart(4, '0')}`
-  const verificationUrl = `${brand.verifyBaseUrl}/verify/${certId}`
+  // Only a real verification code resolves on /verify; a derived certificate id would always show "Invalid".
+  const verificationUrl = certificateVerificationCode
+    ? `${brand.verifyBaseUrl}/verify/${encodeURIComponent(certificateVerificationCode)}`
+    : null
   const printedAt = new Date().toLocaleDateString('en-IN', {
     day: '2-digit',
     month: 'short',
@@ -94,16 +100,20 @@ export function StudentPrintDossier({
 
   useEffect(() => {
     let active = true
-    async function loadQR() {
+    if (!verificationUrl) {
+      setQrCodeUrl(null)
+      return
+    }
+    async function loadQR(url: string) {
       try {
         const QRCode = (await import('qrcode')).default
-        const url = await QRCode.toDataURL(verificationUrl, { width: 140, margin: 1 })
-        if (active) setQrCodeUrl(url)
+        const dataUrl = await QRCode.toDataURL(url, { width: 140, margin: 1 })
+        if (active) setQrCodeUrl(dataUrl)
       } catch {
         // Fallback gracefully without throwing
       }
     }
-    loadQR()
+    loadQR(verificationUrl)
     return () => {
       active = false
     }
@@ -736,7 +746,11 @@ export function StudentPrintDossier({
                       SEAL
                     </div>
                   )}
-                  <span className="text-[8px] font-mono text-slate-500 text-center">Verify: {certId}</span>
+                  {certificateVerificationCode && (
+                    <span className="text-[8px] font-mono text-slate-500 text-center">
+                      Verify: {certificateVerificationCode}
+                    </span>
+                  )}
                 </div>
 
                 {/* Lead Trainer Signature */}

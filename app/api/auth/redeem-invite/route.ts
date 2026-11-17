@@ -6,6 +6,7 @@ import { withApi } from '@/lib/http/handler'
 import { getSupabaseAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { logger } from '@/lib/logger'
+import { checkInviteCode, inviteErrorMessages, normalizeInviteCode, redeemInviteForUser } from '@/lib/auth/invite-codes'
 
 const redeemSchema = z.object({
   email: z.string().trim().email('Please enter a valid email address').max(254),
@@ -13,9 +14,13 @@ const redeemSchema = z.object({
   code: z.string().trim().min(1, 'Invite code or OTP is required').max(100),
 })
 
+const roleRank = { pending: 0, staff: 1, admin: 2 } as const
+
 async function postRedeemInvite(request: Request, requestId: string) {
   const csrfResponse = validateMutationRequest(request)
   if (csrfResponse) return csrfResponse
+
+  const headers = { 'x-request-id': requestId }
 
   try {
     const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
@@ -23,7 +28,7 @@ async function postRedeemInvite(request: Request, requestId: string) {
     if (!limit.success) {
       return NextResponse.json(
         { error: 'Too many attempts. Please try again later.' },
-        { status: 429, headers: { 'Retry-After': String(limit.retryAfterSeconds), 'x-request-id': requestId } },
+        { status: 429, headers: { ...headers, 'Retry-After': String(limit.retryAfterSeconds) } },
       )
     }
 
@@ -31,151 +36,88 @@ async function postRedeemInvite(request: Request, requestId: string) {
     const parsed = redeemSchema.safeParse(json)
     if (!parsed.success) {
       const firstError = parsed.error.issues[0]?.message || 'Invalid form values.'
-      return NextResponse.json({ error: firstError }, { status: 400, headers: { 'x-request-id': requestId } })
+      return NextResponse.json({ error: firstError }, { status: 400, headers })
     }
 
-    const { email, password, code } = parsed.data
-    const trimmedCode = code.toUpperCase().replace(/\s+/g, '-')
+    const { email, password } = parsed.data
+    const code = normalizeInviteCode(parsed.data.code)
+    if (!code) {
+      return NextResponse.json({ error: 'Invalid invite code or OTP. Please check the code.' }, { status: 400, headers })
+    }
 
-    // 1. Verify user credentials
+    // 1. Prove account ownership.
     const supabase = await createClient(requestId)
-    const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    })
-
+    const { data: authData, error: authError } = await supabase.auth.signInWithPassword({ email, password })
     if (authError || !authData.user) {
       return NextResponse.json(
         { error: 'Incorrect email or password. Please verify your credentials.' },
-        { status: 401, headers: { 'x-request-id': requestId } },
+        { status: 401, headers },
       )
     }
 
     const userId = authData.user.id
     const adminClient = getSupabaseAdminClient(requestId)
 
-    // 2. Check current profile role
     const { data: profile } = await adminClient
       .from('profiles')
-      .select('id, role, full_name')
+      .select('id, role')
       .eq('id', userId)
       .maybeSingle()
-
     if (!profile) {
-      return NextResponse.json(
-        { error: 'User profile not found.' },
-        { status: 404, headers: { 'x-request-id': requestId } },
-      )
+      return NextResponse.json({ error: 'User profile not found.' }, { status: 404, headers })
     }
 
-    // 2. Validate invite code / OTP first to determine target role
-    let targetRole: 'admin' | 'staff' = 'staff'
-    let inviteId: string | null = null
-
-    const expectedStatic = (process.env.STAFF_INVITE_PASSCODE || 'THOORIGAI-STAFF').toUpperCase()
-    if (trimmedCode === expectedStatic) {
-      targetRole = 'staff'
-    } else {
-      const { data: invite, error: inviteErr } = await adminClient
-        .from('invite_codes')
-        .select('id, code, role, recipient_email, expires_at, is_used')
-        .ilike('code', trimmedCode)
-        .maybeSingle()
-
-      if (inviteErr || !invite) {
-        return NextResponse.json(
-          { error: 'Invalid invite code or OTP. Please check the code.' },
-          { status: 400, headers: { 'x-request-id': requestId } },
-        )
-      }
-
-      if (invite.is_used) {
-        return NextResponse.json(
-          { error: 'This invite code has already been redeemed. Please request a new code.' },
-          { status: 400, headers: { 'x-request-id': requestId } },
-        )
-      }
-
-      if (new Date(invite.expires_at).getTime() < Date.now()) {
-        return NextResponse.json(
-          { error: 'This invite code has expired. Please contact an administrator for a new code.' },
-          { status: 400, headers: { 'x-request-id': requestId } },
-        )
-      }
-
-      if (invite.recipient_email && invite.recipient_email.toLowerCase().trim() !== email.toLowerCase().trim()) {
-        return NextResponse.json(
-          { error: `This invite code is reserved for ${invite.recipient_email}.` },
-          { status: 400, headers: { 'x-request-id': requestId } },
-        )
-      }
-
-      targetRole = invite.role as 'admin' | 'staff'
-      inviteId = invite.id
+    // 2. Read-only pre-check for a helpful message and to avoid burning a code on a no-op.
+    const check = await checkInviteCode(adminClient, code, email)
+    if (!check.ok) {
+      return NextResponse.json({ error: inviteErrorMessages[check.reason] }, { status: 400, headers })
     }
 
-    // 3. Check current profile role and eligibility
-    if (profile.role === targetRole || (profile.role === 'admin' && targetRole === 'staff')) {
+    const currentRank = roleRank[profile.role as keyof typeof roleRank] ?? 0
+    if (currentRank >= roleRank[check.invite.role]) {
       return NextResponse.json(
         {
           data: {
             role: profile.role,
             alreadyActive: true,
-            message: `Your account is already active with the ${profile.role.toUpperCase()} role. You can sign in directly.`,
+            message: `Your account is already active with the ${String(profile.role).toUpperCase()} role. You can sign in directly.`,
           },
         },
-        { status: 200, headers: { 'x-request-id': requestId } },
+        { status: 200, headers },
       )
     }
 
-    // 4. Activate or upgrade the account
-    await adminClient.auth.admin.updateUserById(userId, {
-      app_metadata: { role: targetRole },
+    // 3. Consume the invite and assign the role in one database transaction.
+    const redeemed = await redeemInviteForUser(adminClient, code, userId, email)
+    if (!redeemed.ok) {
+      return NextResponse.json({ error: redeemed.message }, { status: 400, headers })
+    }
+
+    const { error: metaError } = await adminClient.auth.admin.updateUserById(userId, {
+      app_metadata: { role: redeemed.role },
     })
-
-    const { error: updateErr } = await adminClient.from('profiles').update({ role: targetRole }).eq('id', userId)
-
-    if (updateErr) {
-      logger.error({ requestId, error: updateErr, userId }, 'Failed to update profile during code redemption')
-      return NextResponse.json(
-        { error: 'Failed to update user profile. Please contact an administrator.' },
-        { status: 500, headers: { 'x-request-id': requestId } },
-      )
+    if (metaError) {
+      logger.error({ requestId, userId, errorType: metaError.name }, 'Failed to sync app_metadata role after redeem')
     }
 
-    // 5. Mark invite code as used
-    if (inviteId) {
-      await adminClient
-        .from('invite_codes')
-        .update({
-          is_used: true,
-          used_by_user_id: userId,
-          used_at: new Date().toISOString(),
-        })
-        .eq('id', inviteId)
-    }
+    logger.info({ requestId, role: redeemed.role, userId }, 'Account activated via invite code')
 
-    logger.info({ requestId, role: targetRole, userId }, 'Account successfully activated via invite code')
-
-    // Clear the temporary sign-in cookie used for credential verification
+    // Clear the sign-in cookie used for credential verification so the next login picks up the new role.
     await supabase.auth.signOut().catch(() => {})
 
     return NextResponse.json(
       {
         data: {
           activated: true,
-          role: targetRole,
-          message: `Account activated successfully as ${targetRole.toUpperCase()}! You can now access your dashboard.`,
+          role: redeemed.role,
+          message: `Account activated successfully as ${redeemed.role.toUpperCase()}! You can now access your dashboard.`,
         },
       },
-      { status: 200, headers: { 'x-request-id': requestId } },
+      { status: 200, headers },
     )
   } catch (err: unknown) {
-    console.error('[Redeem Catch Error]:', err instanceof Error ? err.message : err)
-    return NextResponse.json(
-      { error: 'Unable to activate account. Please try again.' },
-      { status: 500, headers: { 'x-request-id': requestId } },
-    )
+    logger.error({ requestId, errorType: err instanceof Error ? err.name : typeof err }, 'Invite redemption failed')
+    return NextResponse.json({ error: 'Unable to activate account. Please try again.' }, { status: 500, headers })
   }
 }
 

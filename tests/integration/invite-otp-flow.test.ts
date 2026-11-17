@@ -18,7 +18,7 @@ vi.mock('@/lib/supabase/admin', () => ({
       if (table === 'invite_codes') {
         const query = {
           select: () => query,
-          ilike: (_col: string, val: string) => {
+          eq: (_col: string, val: string) => {
             if (val === 'ADMIN-84HF-29KL') {
               return { maybeSingle: async () => ({ data: mockInviteData, error: null }) }
             }
@@ -49,19 +49,36 @@ vi.mock('@/lib/supabase/admin', () => ({
 }))
 
 describe('Invite Code & OTP Verification Flow', () => {
-  it('verifies the static master passcode as staff role', async () => {
+  it('does not accept the former static master passcode', async () => {
     const { GET } = await import('@/app/api/auth/verify-invite/route')
     const req = new Request('https://app.example.test/api/auth/verify-invite?code=THOORIGAI-STAFF')
     const res = await GET(req)
     expect(res.status).toBe(200)
     const json = await res.json()
-    expect(json.valid).toBe(true)
-    expect(json.role).toBe('staff')
+    expect(json.valid).toBe(false)
+  })
+
+  it.each(['%', '_', 'ADMIN-%', 'ADMIN-84HF-29K_', '*'])('rejects pattern characters in %s', async (code) => {
+    const { GET } = await import('@/app/api/auth/verify-invite/route')
+    const req = new Request(`https://app.example.test/api/auth/verify-invite?code=${encodeURIComponent(code)}`)
+    const res = await GET(req)
+    const json = await res.json()
+    expect(json.valid).toBe(false)
+  })
+
+  it('does not disclose the reserved recipient email', async () => {
+    mockInviteData.recipient_email = 'someone@example.test'
+    const { GET } = await import('@/app/api/auth/verify-invite/route')
+    const res = await GET(new Request('https://app.example.test/api/auth/verify-invite?code=ADMIN-84HF-29KL'))
+    const body = await res.text()
+    mockInviteData.recipient_email = null
+    expect(body).not.toContain('someone@example.test')
+    expect(JSON.parse(body).emailRestricted).toBe(true)
   })
 
   it('verifies a valid admin invite code and preserves the admin role', async () => {
     const { GET } = await import('@/app/api/auth/verify-invite/route')
-    const req = new Request('https://app.example.test/api/auth/verify-invite?code=ADMIN-84HF-29KL')
+    const req = new Request('https://app.example.test/api/auth/verify-invite?code=admin-84hf-29kl')
     const res = await GET(req)
     expect(res.status).toBe(200)
     const json = await res.json()

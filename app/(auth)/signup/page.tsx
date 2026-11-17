@@ -37,7 +37,7 @@ export default function SignupPage() {
   const [verifiedCode, setVerifiedCode] = useState<{
     valid: boolean
     role?: 'staff' | 'admin'
-    recipientEmail?: string | null
+    emailRestricted?: boolean
     error?: string
   } | null>(null)
   const [verifyingCode, setVerifyingCode] = useState(false)
@@ -82,7 +82,7 @@ export default function SignupPage() {
           setVerifiedCode({
             valid: Boolean(data.valid),
             role: data.role,
-            recipientEmail: data.recipientEmail,
+            emailRestricted: Boolean(data.emailRestricted),
             error: errorMessage,
           })
         }
