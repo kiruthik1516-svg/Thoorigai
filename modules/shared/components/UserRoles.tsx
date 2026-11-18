@@ -38,6 +38,8 @@ type UserProfile = {
   created_at: string | null
   contact_details?: UserContactDetails
   metadata?: UserMetadata
+  /** Set when the account is disabled (F-12). Approving the user re-enables it. */
+  disabled_at?: string | null
 }
 type FilterTab = 'all' | 'pending' | 'staff' | 'admin' | 'invites'
 
@@ -266,18 +268,23 @@ export function UserRoles({
       })
       const result = await res.json().catch(() => null)
       if (!res.ok) {
-        throw new Error(getErrorMessage(result, 'Failed to remove user account.'))
+        throw new Error(getErrorMessage(result, 'Failed to disable user account.'))
       }
-      setRows((current) => current.filter((r) => r.id !== userId))
-      setInitialRows((current) => current.filter((r) => r.id !== userId))
+      const disabledAt = new Date().toISOString()
+      const disable = (r: UserProfile) =>
+        r.id === userId ? { ...r, role: 'pending' as Role, disabled_at: r.disabled_at ?? disabledAt } : r
+      setRows((current) => current.map(disable))
+      setInitialRows((current) => current.map(disable))
       if (editingUser?.id === userId) {
         setEditingUser(null)
       }
-      setSuccess(`User "${confirmDeleteUser.full_name || userId}" has been removed.`)
+      setSuccess(
+        `User "${confirmDeleteUser.full_name || userId}" has been disabled. Their history stays in the audit log; approve them again to restore access.`,
+      )
       setConfirmDeleteUser(null)
       setTimeout(() => setSuccess(''), 5000)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to remove user.')
+      setError(err instanceof Error ? err.message : 'Failed to disable user.')
     } finally {
       setDeletingUserId(null)
     }
@@ -346,8 +353,9 @@ export function UserRoles({
         throw new Error(getErrorMessage(result, `Failed to approve user ${userId}.`))
       }
 
-      setRows((current) => current.map((row) => (row.id === userId ? { ...row, role: roleToApply } : row)))
-      setInitialRows((current) => current.map((row) => (row.id === userId ? { ...row, role: roleToApply } : row)))
+      const approve = (row: UserProfile) => (row.id === userId ? { ...row, role: roleToApply, disabled_at: null } : row)
+      setRows((current) => current.map(approve))
+      setInitialRows((current) => current.map(approve))
 
       setSuccess(
         `Approved ${selectedUser?.full_name || 'user'} as ${roleToApply.toUpperCase()}. Access has been activated.`,
@@ -998,6 +1006,11 @@ export function UserRoles({
                           <span className="text-sm font-semibold text-slate-900">
                             {user.full_name || 'Unnamed user'}
                           </span>
+                          {user.disabled_at && (
+                            <span className="text-[10px] font-semibold bg-red-50 text-red-700 px-1.5 py-0.5 rounded border border-red-200">
+                              Disabled
+                            </span>
+                          )}
                           {isSelf && (
                             <span className="text-[10px] font-semibold bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded border border-slate-200">
                               You
@@ -1695,10 +1708,10 @@ export function UserRoles({
                       disabled={savingDetails || revokingUserId === editingUser.id || deletingUserId === editingUser.id}
                       onClick={() => setConfirmDeleteUser(editingUser)}
                       className="text-xs font-semibold shadow-xs"
-                      title="Permanently remove user account"
+                      title="Disable this account (history is kept)"
                     >
                       <Trash2 size={14} className="mr-1.5" />
-                      Remove User
+                      Disable User
                     </Button>
                   </div>
                 </div>
@@ -1731,9 +1744,9 @@ export function UserRoles({
       {confirmDeleteUser && (
         <ConfirmDialog
           isOpen={true}
-          title={`Remove User "${confirmDeleteUser.full_name || confirmDeleteUser.id}"?`}
-          description="Are you sure you want to permanently delete this user account? This will immediately revoke all access and remove their profile. This action cannot be undone."
-          confirmText={deletingUserId ? 'Removing...' : 'Permanently Remove User'}
+          title={`Disable User "${confirmDeleteUser.full_name || confirmDeleteUser.id}"?`}
+          description="This signs the user out of the dashboard and blocks future sign-ins. Their profile and everything they did stay in the audit log. You can restore access later by approving them again."
+          confirmText={deletingUserId ? 'Disabling...' : 'Disable User'}
           cancelText="Cancel"
           destructive={true}
           onConfirm={handleRemoveUser}

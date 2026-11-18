@@ -60,8 +60,9 @@ export function CoursesManagerClient({
       sort={sort}
       direction={direction}
       onSaveCourse={async (course) => {
+        // F-15: edits use PATCH; POST only ever creates a new course.
         const response = await fetch('/api/courses', {
-          method: 'POST',
+          method: course.id ? 'PATCH' : 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(course),
         })
