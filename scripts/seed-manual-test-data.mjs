@@ -34,6 +34,21 @@ if (!SUPABASE_URL || !SERVICE_KEY) {
   process.exit(1)
 }
 
+// This script writes fake students, payments and invoices. It once ran against production and
+// left balances that disagreed with the ledger (review finding F-06), so remote targets need an
+// explicit opt-in.
+const isLocalTarget = (() => {
+  try {
+    return ['127.0.0.1', 'localhost', '::1'].includes(new URL(SUPABASE_URL).hostname)
+  } catch {
+    return false
+  }
+})()
+if (!isLocalTarget && process.env.ALLOW_REMOTE_SEED !== '1') {
+  console.error('Refusing to seed a non-local Supabase project. Set ALLOW_REMOTE_SEED=1 to override.')
+  process.exit(1)
+}
+
 const supabase = createClient(SUPABASE_URL, SERVICE_KEY)
 
 async function seed() {
@@ -151,8 +166,6 @@ async function seed() {
       course: 'Full Stack Development',
       batch: '2026-08-15',
       total: 4800000,
-      paid: 2400000,
-      status: 'Pending',
       phone: '9840112233',
       alt_phone: '9840112234',
       email: 'aravind.s@example.com',
@@ -174,8 +187,6 @@ async function seed() {
       course: 'Data Science & AI',
       batch: '2026-09-01',
       total: 5200000,
-      paid: 0,
-      status: 'Pending',
       phone: '9840556677',
       alt_phone: '9840556678',
       email: 'pooja.r@example.com',
@@ -197,8 +208,6 @@ async function seed() {
       course: 'Essential Web Fundamentals',
       batch: '2026-09-10',
       total: 1500000,
-      paid: 0,
-      status: 'Pending',
       phone: '9840998877',
       alt_phone: '9840998878',
       email: 'siddharth.b@example.com',
