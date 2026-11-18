@@ -29,7 +29,8 @@ vi.mock('@/lib/supabase/server', () => ({
   }),
 }))
 vi.mock('server-only', () => ({}))
-vi.mock('@/lib/security/rate-limit', () => ({ rateLimit: async () => ({ success: true, retryAfterSeconds: 0 }) }))
+const rateLimitMock = vi.hoisted(() => vi.fn(async () => ({ success: true, retryAfterSeconds: 0 })))
+vi.mock('@/lib/security/rate-limit', () => ({ rateLimit: rateLimitMock }))
 
 import { withApi } from '@/lib/http/handler'
 import { rolesFor, type Action, type Resource } from '@/lib/auth/permissions'
@@ -189,5 +190,49 @@ describe('withApi authentication and authorization', () => {
     const response = await deleteAction(req)
     expect(response.status).toBe(200)
     await expect(response.json()).resolves.toMatchObject({ data: { deleted: true } })
+  })
+})
+
+describe('withApi per-user rate limits (F-14)', () => {
+  beforeEach(() => {
+    vi.stubEnv('NEXT_PUBLIC_APP_URL', 'https://app.example.test')
+    authState.user = { id: 'test-user' }
+    authState.authError = null
+    authState.role = 'admin'
+    authState.profileError = null
+    rateLimitMock.mockClear()
+  })
+  afterEach(() => vi.unstubAllEnvs())
+
+  const handler = withApi({ roles: ['admin'] }, async () => ({ ok: true }))
+
+  it('applies the default mutation limit to authenticated writes', async () => {
+    const response = await handler(
+      new Request('https://app.example.test/api/protected', {
+        method: 'POST',
+        headers: { origin: 'https://app.example.test', host: 'app.example.test', 'content-type': 'application/json' },
+        body: '{}',
+      }),
+    )
+    expect(response.status).toBe(200)
+    expect(rateLimitMock).toHaveBeenCalledWith('user:test-user:POST:/api/protected', 60, '1 m')
+  })
+
+  it('does not rate limit authenticated reads by default', async () => {
+    await handler(request())
+    expect(rateLimitMock).not.toHaveBeenCalled()
+  })
+
+  it('returns 429 when the per-user limit is exhausted', async () => {
+    rateLimitMock.mockResolvedValueOnce({ success: false, retryAfterSeconds: 12 })
+    const response = await handler(
+      new Request('https://app.example.test/api/protected', {
+        method: 'POST',
+        headers: { origin: 'https://app.example.test', host: 'app.example.test', 'content-type': 'application/json' },
+        body: '{}',
+      }),
+    )
+    expect(response.status).toBe(429)
+    expect(response.headers.get('Retry-After')).toBe('12')
   })
 })

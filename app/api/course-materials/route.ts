@@ -265,6 +265,7 @@ export const POST = withApi(
   {
     roles: rolesFor('materials', 'create'),
     mutationContentTypes: ['multipart/form-data'],
+    userRateLimit: { limit: 10, window: '1 m' },
   },
   async ({ request, requestId }) => postCourseMaterial(request as NextRequest, requestId),
 )

@@ -79,8 +79,14 @@ describe('student service', () => {
     expect(mocks.createStudentWithPaymentAtomic).not.toHaveBeenCalled()
   })
 
-  it('creates a student with the atomic repository and maps an optional initial receipt', async () => {
+  it('rejects an initial payment from staff (payments are admin-only)', async () => {
     mocks.role = 'staff'
+    await expect(createStudent({ ...input, paid: 100 })).rejects.toThrow('Only admins can record payments')
+    expect(mocks.createStudentWithPaymentAtomic).not.toHaveBeenCalled()
+  })
+
+  it('creates a student with the atomic repository and maps an optional initial receipt', async () => {
+    mocks.role = 'admin'
     mocks.createStudentWithPaymentAtomic.mockResolvedValueOnce({
       student: { id: 1, register_id: 7, name: 'Asha', paid: 100, status: 'Pending' },
       initial_payment: {
@@ -117,6 +123,7 @@ describe('student service', () => {
   })
 
   it('returns no detail for missing students and combines student and payment data when present', async () => {
+    mocks.role = 'admin'
     mocks.rows.students = null
     await expect(getStudentDetail(99)).resolves.toBeNull()
     mocks.rows.students = { register_id: 8, name: 'Asha' }
@@ -125,6 +132,16 @@ describe('student service', () => {
       student: { registerId: 8, name: 'Asha', paid: 0 },
       payments: [{ id: 'p1' }],
     })
+  })
+
+  it('omits payment history for staff', async () => {
+    mocks.role = 'staff'
+    mocks.rows.students = { register_id: 8, name: 'Asha' }
+    await expect(getStudentDetail(8)).resolves.toEqual({
+      student: { registerId: 8, name: 'Asha', paid: 0 },
+      payments: [],
+    })
+    expect(mocks.listPayments).not.toHaveBeenCalled()
   })
 
   it('returns academic history for a student or empty arrays if student missing', async () => {

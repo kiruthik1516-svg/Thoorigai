@@ -1,10 +1,10 @@
 import { z } from 'zod'
 import { apiResult, withApi } from '@/lib/http/handler'
+import { getCurrentProfile } from '@/lib/auth/current-profile'
 import {
   listUserNotifications,
   markNotificationRead,
   markAllNotificationsRead,
-  createNotification,
 } from '@/modules/notifications/service'
 import type { AppNotification } from '@/modules/notifications/types'
 
@@ -14,18 +14,6 @@ const patchNotificationSchema = z.object({
   id: z.string().optional(),
   all: z.boolean().optional(),
 })
-
-const createNotificationSchema = z.object({
-  title: z.string().min(1).max(100),
-  message: z.string().min(1).max(500),
-  type: z.enum(['alert', 'warning', 'info', 'success']).optional(),
-  link: z.string().optional(),
-  urgent: z.boolean().optional(),
-  recipientRole: z.enum(['admin', 'staff', 'all']).optional(),
-  userId: z.string().optional(),
-})
-
-import { getCurrentProfile } from '@/lib/auth/current-profile'
 
 export const GET = withApi({ roles: ['admin', 'staff'] as const }, async ({ user, role }) => {
   const profile = await getCurrentProfile()
@@ -56,14 +44,5 @@ export const PATCH = withApi(
   },
 )
 
-export const POST = withApi(
-  {
-    roles: ['admin', 'staff'] as const,
-    body: createNotificationSchema,
-    successStatus: 201,
-  },
-  async ({ body }) => {
-    await createNotification(body)
-    return apiResult({ success: true, message: 'Notification created' }, { status: 201 })
-  },
-)
+// F-10: there is intentionally no POST handler. Notifications are created only by server code
+// (modules/notifications/service.ts) with the service role.

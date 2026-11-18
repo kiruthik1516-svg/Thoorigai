@@ -11,7 +11,13 @@ vi.mock('server-only', () => ({}))
 vi.mock('@/lib/supabase/server', () => ({ createClient: async () => mocks.client }))
 vi.mock('@/lib/supabase/admin', () => ({ getSupabaseAdminClient: () => mocks.client }))
 
-import { listUserNotifications, markNotificationRead, markAllNotificationsRead, createNotification } from './service'
+import {
+  listUserNotifications,
+  markNotificationRead,
+  markAllNotificationsRead,
+  createNotification,
+  isInternalLink,
+} from './service'
 
 describe('notifications service', () => {
   beforeEach(() => {
@@ -186,10 +192,10 @@ describe('notifications service', () => {
     expect(upsertedRows).toBeNull()
   })
 
-  it('creates a notification with admin or custom client without throwing', async () => {
+  it('creates notifications through the service-role client only', async () => {
     let insertedRow: any = null
-    const customClient = {
-      from: vi.fn((table: string) => ({
+    mocks.client = {
+      from: vi.fn(() => ({
         insert: vi.fn(async (row: any) => {
           insertedRow = row
           return { data: row, error: null }
@@ -197,27 +203,40 @@ describe('notifications service', () => {
       })),
     }
 
-    await createNotification(
-      {
-        recipientRole: 'admin',
-        title: 'Low Attendance',
-        message: 'Bob attendance is 65%',
-        type: 'warning',
-        urgent: true,
-      },
-      customClient,
-    )
+    await createNotification({
+      recipientRole: 'admin',
+      title: 'Low Attendance',
+      message: 'Bob attendance is 65%',
+      type: 'warning',
+      urgent: true,
+      link: '/attendance?course=web',
+    })
 
-    expect(insertedRow).toBeDefined()
     expect(insertedRow.recipient_role).toBe('admin')
     expect(insertedRow.title).toBe('Low Attendance')
     expect(insertedRow.urgent).toBe(true)
+    expect(insertedRow.link).toBe('/attendance?course=web')
+  })
 
-    // With default admin client
-    await createNotification({
-      recipientRole: 'staff',
-      title: 'Course Update',
-      message: 'Materials added',
-    })
+  it.each(['https://evil.example', '//evil.example', 'javascript:alert(1)', '/\\evil.example', ''])(
+    'replaces unsafe link %j with /',
+    async (link) => {
+      let insertedRow: any = null
+      mocks.client = {
+        from: vi.fn(() => ({
+          insert: vi.fn(async (row: any) => {
+            insertedRow = row
+            return { data: row, error: null }
+          }),
+        })),
+      }
+      await createNotification({ title: 't', message: 'm', link })
+      expect(insertedRow.link).toBe('/')
+    },
+  )
+
+  it('accepts encoded invoice links', () => {
+    expect(isInternalLink('/invoices/TAI%2F2026%2FINV000037')).toBe(true)
+    expect(isInternalLink('/settings/users?filter=pending')).toBe(true)
   })
 })

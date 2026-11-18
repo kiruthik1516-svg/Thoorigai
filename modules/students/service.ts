@@ -42,8 +42,13 @@ export async function listStudentPage(options: {
 
 /** Creates a student and optional first payment through the atomic database workflow. */
 export async function createStudent(input: CreateStudentInput) {
-  authorizeStudent((await getCurrentProfile()).role, 'create')
+  const { role } = await getCurrentProfile()
+  authorizeStudent(role, 'create')
   if (input.paid > input.total) throw new ValidationError('Paid amount cannot exceed total fees.')
+  // F-03: payments are admin-only. Staff enrol with the fee set and no initial payment.
+  if (input.paid > 0 && !can(role, 'payments', 'create')) {
+    throw new ForbiddenError('Only admins can record payments. Enrol the student without an initial payment.')
+  }
   const client = await createClient()
   const paymentDate = new Date().toISOString().slice(0, 10)
   const rpcResult = await createStudentWithPaymentAtomic(
@@ -81,33 +86,31 @@ export async function createStudent(input: CreateStudentInput) {
       }
     : null
 
-  void createNotification(
-    {
-      recipientRole: 'all',
-      title: 'New Student Enrolled',
-      message: `${student.name} enrolled in ${student.course} (TAI-${student.registerId}).`,
-      type: 'success',
-      link: `/students/${student.registerId}`,
-      entityType: 'student',
-      entityId: String(student.id),
-    },
-    client,
-  )
+  void createNotification({
+    recipientRole: 'all',
+    title: 'New Student Enrolled',
+    message: `${student.name} enrolled in ${student.course} (TAI-${student.registerId}).`,
+    type: 'success',
+    link: `/students/${student.registerId}`,
+    entityType: 'student',
+    entityId: String(student.id),
+  })
 
   return { message: 'Student created successfully', data: student, payment }
 }
 
 export async function getStudentDetail(registerId: number) {
-  authorizeStudent((await getCurrentProfile()).role, 'read')
+  const { role } = await getCurrentProfile()
+  authorizeStudent(role, 'read')
   const supabase = await createClient()
   const { data: row, error } = await supabase.from('students').select('*').eq('register_id', registerId).maybeSingle()
   if (error) throw error
   if (!row) return null
-  const [studentResult, paymentResult] = await Promise.all([
-    Promise.resolve(studentFromRow(row)),
-    listPayments(supabase, { page: 1, pageSize: 100, studentId: registerId }),
-  ])
-  return { student: studentResult, payments: paymentResult.data }
+  // F-03: only roles that may read payments get the payment history (RLS enforces the same rule).
+  const payments = can(role, 'payments', 'read')
+    ? (await listPayments(supabase, { page: 1, pageSize: 100, studentId: registerId })).data
+    : []
+  return { student: studentFromRow(row), payments }
 }
 
 export async function getStudentAcademicHistory(registerId: number) {

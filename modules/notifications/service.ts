@@ -96,18 +96,21 @@ export async function markAllNotificationsRead(userId: string, role: string): Pr
   await supabase.from('notification_reads').upsert(rows, { onConflict: 'user_id,notification_id' })
 }
 
-export async function createNotification(input: CreateNotificationInput, client?: any): Promise<void> {
+/** Same rule as the notifications_link_internal constraint: a same-origin path, never `//host` or a URL. */
+const INTERNAL_LINK = /^\/(?:[A-Za-z0-9_?=&.%-][A-Za-z0-9/_?=&.%-]*)?$/
+
+export function isInternalLink(link: string | null | undefined): link is string {
+  return typeof link === 'string' && INTERNAL_LINK.test(link)
+}
+
+/**
+ * Server-side only. Notifications are written with the service role (F-10): end users have no
+ * INSERT privilege on public.notifications.
+ */
+export async function createNotification(input: CreateNotificationInput): Promise<void> {
   try {
-    let supabase = client
-    if (!supabase) {
-      try {
-        const { getSupabaseAdminClient } = await import('@/lib/supabase/admin')
-        supabase = getSupabaseAdminClient()
-      } catch {
-        return
-      }
-    }
-    if (!supabase || typeof supabase.from !== 'function') return
+    const { getSupabaseAdminClient } = await import('@/lib/supabase/admin')
+    const supabase = getSupabaseAdminClient()
 
     await supabase.from('notifications').insert({
       recipient_role: input.recipientRole || 'all',
@@ -115,7 +118,7 @@ export async function createNotification(input: CreateNotificationInput, client?
       title: input.title,
       message: input.message,
       type: input.type || 'info',
-      link: input.link || '/',
+      link: isInternalLink(input.link) ? input.link : '/',
       urgent: Boolean(input.urgent),
       entity_type: input.entityType || null,
       entity_id: input.entityId || null,

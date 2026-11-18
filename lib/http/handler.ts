@@ -24,6 +24,13 @@ type ApiOptions = {
   userRateLimit?: { limit: number; window: '1 m' | '15 m' }
 } & ({ public: true; roles?: never } | { public?: false; roles: readonly Role[] })
 
+/**
+ * F-14: every authenticated mutation gets a per-user limit unless the route declares its own.
+ * Uploads, payments and admin actions set tighter values on the route.
+ */
+export const DEFAULT_MUTATION_RATE_LIMIT = { limit: 60, window: '1 m' } as const
+const MUTATION_METHODS = ['POST', 'PUT', 'PATCH', 'DELETE']
+
 type InferSchema<TSchema> = TSchema extends ZodTypeAny ? z.infer<TSchema> : undefined
 
 export type ApiResult<T> = {
@@ -189,13 +196,16 @@ export function withApi<TOptions extends ApiOptions, TResult>(
         }
         role = profile.role
         requireRole(role, options.roles ?? [])
-        if (options.userRateLimit && user) {
+        const userLimit =
+          options.userRateLimit ??
+          (MUTATION_METHODS.includes(request.method) ? DEFAULT_MUTATION_RATE_LIMIT : undefined)
+        if (userLimit && user) {
           let result: Awaited<ReturnType<typeof rateLimit>>
           try {
             result = await rateLimit(
-              `user:${user.id}:${new URL(request.url).pathname}`,
-              options.userRateLimit.limit,
-              options.userRateLimit.window,
+              `user:${user.id}:${request.method}:${new URL(request.url).pathname}`,
+              userLimit.limit,
+              userLimit.window,
             )
           } catch {
             throw new AppError('Service temporarily unavailable.', 503, 'INTERNAL_ERROR')

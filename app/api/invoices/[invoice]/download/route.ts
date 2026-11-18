@@ -3,13 +3,13 @@ import fontkit from '@pdf-lib/fontkit'
 import { readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { NextResponse } from 'next/server'
-import type { NextRequest } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import type { SupabaseClient } from '@supabase/supabase-js'
 import { paymentFromRow, studentFromRow } from '@/lib/server-data'
 import { unexpectedApiError } from '@/lib/api-response'
 import QRCode from 'qrcode'
 import { brand } from '@/lib/brand'
 import { calculateGstFromParts, calculateGstInclusive, formatINR, rupeesToPaise } from '@/lib/money'
+import { rolesFor } from '@/lib/auth/permissions'
 import { withApi } from '@/lib/http/handler'
 import { z } from 'zod'
 import { createHash } from 'node:crypto'
@@ -48,25 +48,10 @@ async function storeCachedPdf(cachePath: string, bytes: Uint8Array): Promise<voi
   }
 }
 
-// This route is intended for authenticated staff use only to download payment invoices.
-// The eventual public verification flow (QR/verify prompts) will be a SEPARATE,
-// deliberately public and minimal route - don't merge the two.
+// Admin-only invoice download (authentication and the role check happen in withApi).
+// The public verification flow is the separate, deliberately minimal /api/verify route - don't merge the two.
 
-async function getInvoicePdf(_request: Request, context: { params: Promise<{ invoice: string }> }) {
-  const supabase = await createClient()
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser()
-  if (authError || !user) {
-    return new NextResponse(JSON.stringify({ error: 'Unauthorized' }), { status: 401 })
-  }
-
-  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle()
-  if (profile?.role !== 'admin' && profile?.role !== 'staff') {
-    return NextResponse.json({ error: 'Access denied.' }, { status: 403 })
-  }
-
+async function getInvoicePdf(supabase: SupabaseClient, context: { params: Promise<{ invoice: string }> }) {
   const { invoice } = await context.params
   const decodedInvoice = decodeURIComponent(invoice)
 
@@ -267,8 +252,9 @@ async function getInvoicePdf(_request: Request, context: { params: Promise<{ inv
 
 export const GET = withApi(
   {
-    roles: ['admin', 'staff'] as const,
+    // F-03: invoices expose payment amounts; admin-only like the rest of the payments resource.
+    roles: rolesFor('payments', 'read'),
     params: z.object({ invoice: z.string().min(1) }),
   },
-  async ({ request, params }) => getInvoicePdf(request, { params: Promise.resolve(params) }),
+  async ({ supabase, params }) => getInvoicePdf(supabase!, { params: Promise.resolve(params) }),
 )

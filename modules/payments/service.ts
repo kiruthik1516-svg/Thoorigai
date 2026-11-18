@@ -147,18 +147,15 @@ export async function createPayment(input: RecordPaymentInput, idempotencyKey: s
       verification_code: result.verification_code,
     }
 
-    void createNotification(
-      {
-        recipientRole: 'admin',
-        title: 'Fee Payment Received',
-        message: `Invoice ${String(result.payment.invoice)} recorded for ₹${(Number(result.payment.amount) / 100).toLocaleString('en-IN')} (${String(result.student.name)}).`,
-        type: 'info',
-        link: `/invoices/${encodeURIComponent(String(result.payment.invoice))}`,
-        entityType: 'payment',
-        entityId: String(result.payment.id),
-      },
-      client,
-    )
+    void createNotification({
+      recipientRole: 'admin',
+      title: 'Fee Payment Received',
+      message: `Invoice ${String(result.payment.invoice)} recorded for ₹${(Number(result.payment.amount) / 100).toLocaleString('en-IN')} (${String(result.student.name)}).`,
+      type: 'info',
+      link: `/invoices/${encodeURIComponent(String(result.payment.invoice))}`,
+      entityType: 'payment',
+      entityId: String(result.payment.id),
+    })
 
     return paymentRecord
   } catch (error) {

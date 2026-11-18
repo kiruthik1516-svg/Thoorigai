@@ -128,7 +128,8 @@ export function NotificationPanel({ role }: { role: Role }) {
   const handleNotificationClick = (n: AppNotification) => {
     void markAsRead(n.id)
     setIsOpen(false)
-    if (n.link) {
+    // Only follow same-origin paths; never navigate to an external or protocol-relative URL.
+    if (n.link && n.link.startsWith('/') && !n.link.startsWith('//') && !n.link.startsWith('/\\')) {
       router.push(n.link)
     }
   }

@@ -15,13 +15,15 @@ vi.mock('@upstash/ratelimit', () => {
   }
 })
 
+vi.mock('@/lib/logger', () => ({ logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn() } }))
+
 vi.mock('@upstash/redis', () => {
   return {
     Redis: class MockRedis {},
   }
 })
 
-import { rateLimit } from './rate-limit'
+import { memoryRateLimit, rateLimit, RateLimitUnavailableError, resetMemoryRateLimit } from './rate-limit'
 
 describe('rate limit helper', () => {
   const originalEnv = { ...process.env }
@@ -31,6 +33,7 @@ describe('rate limit helper', () => {
     process.env = { ...originalEnv }
     delete process.env.UPSTASH_REDIS_REST_URL
     delete process.env.UPSTASH_REDIS_REST_TOKEN
+    resetMemoryRateLimit()
   })
 
   afterEach(() => {
@@ -50,13 +53,29 @@ describe('rate limit helper', () => {
     expect(res).toEqual({ success: true, retryAfterSeconds: 0 })
   })
 
-  it('bypasses gracefully with warning in production if redis is unconfigured', async () => {
+  it('does not fail open in production without redis: falls back to an in-memory limit', async () => {
     vi.stubEnv('NODE_ENV', 'production')
-    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
-    const res = await rateLimit('test-ip', 5, '1 m')
-    expect(res).toEqual({ success: true, retryAfterSeconds: 0 })
-    expect(warnSpy).toHaveBeenCalled()
-    warnSpy.mockRestore()
+    for (let i = 0; i < 3; i++) {
+      await expect(rateLimit('prod-ip', 3, '1 m')).resolves.toMatchObject({ success: true })
+    }
+    const blocked = await rateLimit('prod-ip', 3, '1 m')
+    expect(blocked.success).toBe(false)
+    expect(blocked.retryAfterSeconds).toBeGreaterThan(0)
+    // Other identifiers are unaffected.
+    await expect(rateLimit('other-ip', 3, '1 m')).resolves.toMatchObject({ success: true })
+  })
+
+  it('fails closed in production when RATE_LIMIT_REQUIRE_REDIS=true and redis is missing', async () => {
+    vi.stubEnv('NODE_ENV', 'production')
+    vi.stubEnv('RATE_LIMIT_REQUIRE_REDIS', 'true')
+    await expect(rateLimit('test-ip', 5, '1 m')).rejects.toBeInstanceOf(RateLimitUnavailableError)
+  })
+
+  it('in-memory limiter frees capacity once the window passes', () => {
+    const start = 1_000_000
+    expect(memoryRateLimit('k', 1, '1 m', start).success).toBe(true)
+    expect(memoryRateLimit('k', 1, '1 m', start + 1_000).success).toBe(false)
+    expect(memoryRateLimit('k', 1, '1 m', start + 61_000).success).toBe(true)
   })
 
   it('calls Upstash limiter when redis is configured', async () => {

@@ -41,7 +41,7 @@ Public self-registration (`/auth/v1/signup`) is disabled in `supabase/config.tom
 
 ## Rate limiting configuration
 
-Upstash Redis sliding-window limits are used for public verification (10/minute/IP), password login (5/15 minutes/IP), MFA actions (5/15 minutes/admin), certificate creation (10/15 minutes/user), and payment mutations (20/minute/user). Configure `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` in production. The app fails closed with 503 if production rate limiting is unconfigured or unavailable; local development bypasses the limiter. `/api/auth/login` is an explicit public authentication endpoint in addition to the health, readiness, login page, and verification allowlist.
+Upstash Redis sliding-window limits are used for public verification (10/minute/IP), password login (5/15 minutes/IP), signup and invite redemption (5/15 minutes/IP), invite verification (30/minute/IP), certificate creation (10/15 minutes/user), payment mutations (20/minute/user), uploads (10/minute/user), invite creation and user administration (10-20/minute/user), and every other authenticated mutation (60/minute/user by default in `withApi`). Configure `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` in production. Without them, production falls back to a per-instance in-memory limiter and logs `rate_limit_degraded`; this is weaker than Redis because each server instance counts separately. Set `RATE_LIMIT_REQUIRE_REDIS=true` once Redis is configured to fail closed with 503 instead. Local development bypasses the limiter. `/api/auth/login` is an explicit public authentication endpoint in addition to the health, readiness, login page, and verification allowlist.
 
 ## Data retention and deletion
 

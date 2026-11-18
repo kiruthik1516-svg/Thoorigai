@@ -65,40 +65,43 @@ export const GET = withApi({ roles: ['admin'] }, async ({ supabase }) => {
   }))
 })
 
-export const POST = withApi({ roles: ['admin'], body: createInviteSchema }, async ({ supabase, user, body }) => {
-  const code = generateRandomCode(body.role)
-  const expiresAt = new Date(Date.now() + body.expiresInHours * 3600 * 1000).toISOString()
+export const POST = withApi(
+  { roles: ['admin'], body: createInviteSchema, userRateLimit: { limit: 10, window: '1 m' } },
+  async ({ supabase, user, body }) => {
+    const code = generateRandomCode(body.role)
+    const expiresAt = new Date(Date.now() + body.expiresInHours * 3600 * 1000).toISOString()
 
-  const { data, error } = await supabase!
-    .from('invite_codes')
-    .insert({
-      code,
-      role: body.role,
-      created_by: user!.id,
-      recipient_email: body.recipientEmail ? body.recipientEmail.toLowerCase().trim() : null,
-      expires_at: expiresAt,
-      is_used: false,
-    })
-    .select('id,code,role,recipient_email,expires_at,is_used,created_at')
-    .single()
+    const { data, error } = await supabase!
+      .from('invite_codes')
+      .insert({
+        code,
+        role: body.role,
+        created_by: user!.id,
+        recipient_email: body.recipientEmail ? body.recipientEmail.toLowerCase().trim() : null,
+        expires_at: expiresAt,
+        is_used: false,
+      })
+      .select('id,code,role,recipient_email,expires_at,is_used,created_at')
+      .single()
 
-  if (error) {
-    throw new ValidationError(error.message)
-  }
+    if (error) {
+      throw new ValidationError(error.message)
+    }
 
-  return {
-    created: true,
-    invite: {
-      id: data.id,
-      code: data.code,
-      role: data.role,
-      recipientEmail: data.recipient_email,
-      expiresAt: data.expires_at,
-      isUsed: data.is_used,
-      createdAt: data.created_at,
-    },
-  }
-})
+    return {
+      created: true,
+      invite: {
+        id: data.id,
+        code: data.code,
+        role: data.role,
+        recipientEmail: data.recipient_email,
+        expiresAt: data.expires_at,
+        isUsed: data.is_used,
+        createdAt: data.created_at,
+      },
+    }
+  },
+)
 
 export const DELETE = withApi(
   {

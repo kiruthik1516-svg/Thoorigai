@@ -29,93 +29,99 @@ export const GET = withApi({ roles: ['admin'] }, async ({ supabase }) => {
   return data ?? []
 })
 
-export const PATCH = withApi({ roles: ['admin'], body: updateUserSchema }, async ({ supabase, body, requestId }) => {
-  if (body.role) {
-    const { error } = await supabase!.rpc('admin_change_profile_role', {
-      p_user_id: body.userId,
-      p_role: body.role,
-    })
-    if (error) {
-      if (error.code === 'P0002') return Response.json({ error: 'User profile was not found.' }, { status: 404 })
-      if (error.code === '22023' || error.code === '23514')
-        return Response.json({ error: error.message }, { status: 409 })
-      if (error.code === '42501') return Response.json({ error: 'Admin access required.' }, { status: 403 })
-      throw error
+export const PATCH = withApi(
+  { roles: ['admin'], body: updateUserSchema, userRateLimit: { limit: 20, window: '1 m' } },
+  async ({ supabase, body, requestId }) => {
+    if (body.role) {
+      const { error } = await supabase!.rpc('admin_change_profile_role', {
+        p_user_id: body.userId,
+        p_role: body.role,
+      })
+      if (error) {
+        if (error.code === 'P0002') return Response.json({ error: 'User profile was not found.' }, { status: 404 })
+        if (error.code === '22023' || error.code === '23514')
+          return Response.json({ error: error.message }, { status: 409 })
+        if (error.code === '42501') return Response.json({ error: 'Admin access required.' }, { status: 403 })
+        throw error
+      }
+
+      try {
+        const adminClient = getSupabaseAdminClient(requestId)
+        await adminClient.auth.admin.updateUserById(body.userId, {
+          app_metadata: { role: body.role },
+        })
+      } catch {
+        // Non-fatal if auth record update encounters an internal delay
+      }
     }
 
-    try {
-      const adminClient = getSupabaseAdminClient(requestId)
-      await adminClient.auth.admin.updateUserById(body.userId, {
+    const profileUpdates: Record<string, unknown> = {}
+    if (body.fullName !== undefined) profileUpdates.full_name = body.fullName.trim()
+    if (body.contactDetails !== undefined) profileUpdates.contact_details = body.contactDetails
+    if (body.metadata !== undefined) profileUpdates.metadata = body.metadata
+
+    if (Object.keys(profileUpdates).length > 0) {
+      const { error: updateError } = await supabase!.from('profiles').update(profileUpdates).eq('id', body.userId)
+
+      if (updateError) throw updateError
+    }
+
+    return { updated: true }
+  },
+)
+
+export const POST = withApi(
+  { roles: ['admin'], body: createUserSchema, userRateLimit: { limit: 10, window: '1 m' } },
+  async ({ body, requestId }) => {
+    const adminClient = getSupabaseAdminClient(requestId)
+
+    if (body.password) {
+      const { data, error } = await adminClient.auth.admin.createUser({
+        email: body.email,
+        password: body.password,
+        email_confirm: true,
+        user_metadata: { full_name: body.fullName },
         app_metadata: { role: body.role },
       })
-    } catch {
-      // Non-fatal if auth record update encounters an internal delay
+      if (error) {
+        return Response.json({ error: error.message }, { status: 400 })
+      }
+      if (data.user) {
+        await adminClient.from('profiles').upsert({
+          id: data.user.id,
+          role: body.role,
+          full_name: body.fullName,
+        })
+      }
+      return { created: true, user: { id: data.user?.id, email: data.user?.email } }
     }
-  }
 
-  const profileUpdates: Record<string, unknown> = {}
-  if (body.fullName !== undefined) profileUpdates.full_name = body.fullName.trim()
-  if (body.contactDetails !== undefined) profileUpdates.contact_details = body.contactDetails
-  if (body.metadata !== undefined) profileUpdates.metadata = body.metadata
-
-  if (Object.keys(profileUpdates).length > 0) {
-    const { error: updateError } = await supabase!.from('profiles').update(profileUpdates).eq('id', body.userId)
-
-    if (updateError) throw updateError
-  }
-
-  return { updated: true }
-})
-
-export const POST = withApi({ roles: ['admin'], body: createUserSchema }, async ({ body, requestId }) => {
-  const adminClient = getSupabaseAdminClient(requestId)
-
-  if (body.password) {
-    const { data, error } = await adminClient.auth.admin.createUser({
-      email: body.email,
-      password: body.password,
-      email_confirm: true,
-      user_metadata: { full_name: body.fullName },
-      app_metadata: { role: body.role },
+    const { data, error } = await adminClient.auth.admin.inviteUserByEmail(body.email, {
+      data: { full_name: body.fullName },
     })
     if (error) {
       return Response.json({ error: error.message }, { status: 400 })
     }
     if (data.user) {
+      await adminClient.auth.admin.updateUserById(data.user.id, {
+        app_metadata: { role: body.role },
+      })
       await adminClient.from('profiles').upsert({
         id: data.user.id,
         role: body.role,
         full_name: body.fullName,
       })
     }
-    return { created: true, user: { id: data.user?.id, email: data.user?.email } }
-  }
-
-  const { data, error } = await adminClient.auth.admin.inviteUserByEmail(body.email, {
-    data: { full_name: body.fullName },
-  })
-  if (error) {
-    return Response.json({ error: error.message }, { status: 400 })
-  }
-  if (data.user) {
-    await adminClient.auth.admin.updateUserById(data.user.id, {
-      app_metadata: { role: body.role },
-    })
-    await adminClient.from('profiles').upsert({
-      id: data.user.id,
-      role: body.role,
-      full_name: body.fullName,
-    })
-  }
-  return { invited: true, user: { id: data.user?.id, email: data.user?.email } }
-})
+    return { invited: true, user: { id: data.user?.id, email: data.user?.email } }
+  },
+)
 
 const deleteUserQuerySchema = z.object({
   userId: z.string().uuid(),
 })
 
 export const DELETE = withApi(
-  { roles: ['admin'], query: deleteUserQuerySchema },
+  { roles: ['admin'], query: deleteUserQuerySchema, userRateLimit: { limit: 10, window: '1 m' } },
   async ({ query, user, requestId, supabase }) => {
     if (query.userId === user?.id) {
       return Response.json({ error: 'You cannot remove your own account.' }, { status: 400 })
