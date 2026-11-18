@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { withApi } from '@/lib/http/handler'
 
-const assignmentSchema = z.object({ courseId: z.string().min(1), trainerId: z.string().uuid() })
+const assignmentSchema = z.object({ courseId: z.string().min(1), trainerId: z.guid() })
 const removeSchema = assignmentSchema
 
 export const POST = withApi({ roles: ['admin'], body: assignmentSchema }, async ({ supabase, body, user }) => {

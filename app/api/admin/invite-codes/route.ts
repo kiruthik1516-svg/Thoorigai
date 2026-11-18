@@ -9,7 +9,7 @@ const createInviteSchema = z.object({
 })
 
 const deleteInviteSchema = z.object({
-  id: z.string().uuid(),
+  id: z.guid(),
 })
 
 function generateRandomCode(role: 'staff' | 'admin'): string {

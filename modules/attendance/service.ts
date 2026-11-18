@@ -21,7 +21,7 @@ export async function listAttendancePage(options: {
       'id,student_id,course_id,session_date,status,students(register_id,name),courses(name),profiles(full_name)',
       options.keyset ? undefined : { count: 'exact' },
     )
-  const cursorSchema = z.object({ date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), id: z.string().uuid() })
+  const cursorSchema = z.object({ date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), id: z.guid() })
   if (options.keyset && options.cursor) {
     const cursor = decodeCursor(options.cursor, cursorSchema)
     query = query.or(`session_date.lt.${cursor.date},and(session_date.eq.${cursor.date},id.lt.${cursor.id})`)

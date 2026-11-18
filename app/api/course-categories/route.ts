@@ -10,13 +10,13 @@ import {
 } from '@/modules/courses/service'
 
 const updateCategorySchema = z.object({
-  id: z.string().uuid(),
+  id: z.guid(),
   name: z.string().min(1).max(100).optional(),
   duration: z.string().min(1).max(50).optional(),
 })
 
 const deleteCategoryQuerySchema = z.object({
-  id: z.string().uuid(),
+  id: z.guid(),
 })
 
 export const GET = withApi({ roles: rolesFor('courses', 'read') }, async () => {

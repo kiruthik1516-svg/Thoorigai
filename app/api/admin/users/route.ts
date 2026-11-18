@@ -3,11 +3,11 @@ import { withApi } from '@/lib/http/handler'
 import { getSupabaseAdminClient } from '@/lib/supabase/admin'
 
 const updateUserSchema = z.object({
-  userId: z.string().uuid(),
+  userId: z.guid(),
   role: z.enum(['admin', 'staff', 'pending']).optional(),
   fullName: z.string().min(1).max(200).optional(),
-  contactDetails: z.record(z.unknown()).optional(),
-  metadata: z.record(z.unknown()).optional(),
+  contactDetails: z.record(z.string(), z.unknown()).optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
 })
 
 const createUserSchema = z.object({
@@ -15,8 +15,8 @@ const createUserSchema = z.object({
   fullName: z.string().min(1).max(200),
   role: z.enum(['admin', 'staff', 'pending']).default('staff'),
   password: z.string().min(8).max(1024).optional(),
-  contactDetails: z.record(z.unknown()).optional(),
-  metadata: z.record(z.unknown()).optional(),
+  contactDetails: z.record(z.string(), z.unknown()).optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
 })
 
 export const GET = withApi({ roles: ['admin'] }, async ({ supabase }) => {
@@ -117,7 +117,7 @@ export const POST = withApi(
 )
 
 const deleteUserQuerySchema = z.object({
-  userId: z.string().uuid(),
+  userId: z.guid(),
 })
 
 export const DELETE = withApi(

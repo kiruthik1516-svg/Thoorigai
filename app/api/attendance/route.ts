@@ -71,7 +71,7 @@ async function getAttendance(req: NextRequest) {
     if (keyset && cursorToken) {
       const cursor = decodeCursor(
         cursorToken,
-        z.object({ date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), id: z.string().uuid() }),
+        z.object({ date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), id: z.guid() }),
       )
       query = query.or(`session_date.lt.${cursor.date},and(session_date.eq.${cursor.date},id.lt.${cursor.id})`)
     }
@@ -248,7 +248,7 @@ async function postAttendance(req: NextRequest) {
     )
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: error.errors }, { status: 400 })
+      return NextResponse.json({ error: error.issues }, { status: 400 })
     }
     return unexpectedApiError(error, 'Unable to mark attendance')
   }

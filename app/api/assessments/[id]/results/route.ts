@@ -321,7 +321,7 @@ async function postAssessmentResult(req: NextRequest, { params }: { params: Prom
     )
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: error.errors }, { status: 400 })
+      return NextResponse.json({ error: error.issues }, { status: 400 })
     }
     return unexpectedApiError(error, 'Unable to save assessment result')
   }
@@ -336,7 +336,7 @@ export const POST = withApi(
   { roles: rolesFor('assessments', 'grade'), params: assessmentParams },
   async ({ request, params }) => postAssessmentResult(request as NextRequest, { params: Promise.resolve(params) }),
 )
-const deleteResultQuery = z.object({ resultId: z.string().uuid() })
+const deleteResultQuery = z.object({ resultId: z.guid() })
 export const DELETE = withApi(
   { roles: rolesFor('assessments', 'grade'), params: assessmentParams, query: deleteResultQuery },
   async ({ supabase, params, query }) => {

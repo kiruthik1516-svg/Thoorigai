@@ -4,10 +4,10 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { validateMutationRequest } from '../server/csrf'
 
 const updateUserSchema = z.object({
-  userId: z.string().uuid(),
+  userId: z.guid(),
   role: z.string().min(1).optional(),
   fullName: z.string().min(1).max(200).optional(),
-  metadata: z.record(z.unknown()).optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
 })
 
 export type AdminUsersHandlerOptions = {

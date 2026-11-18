@@ -252,7 +252,7 @@ async function postCourseMaterial(req: NextRequest, requestId: string) {
     )
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: error.errors }, { status: 400 })
+      return NextResponse.json({ error: error.issues }, { status: 400 })
     }
     return unexpectedApiError(error, 'Unable to upload course material')
   }
@@ -270,7 +270,7 @@ export const POST = withApi(
   async ({ request, requestId }) => postCourseMaterial(request as NextRequest, requestId),
 )
 
-const deleteMaterialQuery = z.object({ id: z.string().uuid() })
+const deleteMaterialQuery = z.object({ id: z.guid() })
 export const DELETE = withApi(
   { roles: rolesFor('materials', 'delete'), query: deleteMaterialQuery },
   async ({ supabase, query }) => {

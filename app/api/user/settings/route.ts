@@ -3,8 +3,8 @@ import { withApi } from '@/lib/http/handler'
 
 const updateSettingsSchema = z.object({
   fullName: z.string().min(1).max(200).optional(),
-  contactDetails: z.record(z.unknown()).optional(),
-  metadata: z.record(z.unknown()).optional(),
+  contactDetails: z.record(z.string(), z.unknown()).optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
 })
 
 export const GET = withApi({ roles: ['admin', 'staff'] }, async ({ supabase, user }) => {

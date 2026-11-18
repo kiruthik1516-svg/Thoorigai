@@ -60,7 +60,7 @@ export const courseSchema = z.object({
   duration: z.string().default('6 weeks'),
   description: z.string().default(''),
   gstInclusive: z.boolean().default(false),
-  categoryId: z.union([z.string().uuid(), z.string(), z.null()]).optional(),
+  categoryId: z.union([z.guid(), z.string(), z.null()]).optional(),
 })
 
 export const certificateSchema = z.object({
