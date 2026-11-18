@@ -66,34 +66,6 @@ export async function createPayment(input: RecordPaymentInput, idempotencyKey: s
   const payload = JSON.stringify(input)
   const hash = createHash('sha256').update(payload).digest('hex')
   try {
-    let paymentType = input.paymentType
-    let instanceNumber = input.instanceNumber
-
-    try {
-      const { count } = await client
-        .from('payments')
-        .select('id', { count: 'exact', head: true })
-        .eq('student_register_id', input.studentId)
-      const priorCount = count ?? 0
-      instanceNumber ??= priorCount + 1
-      if (!paymentType) {
-        if (instanceNumber === 1) {
-          paymentType = '1st Part Fees Payment'
-        } else if (instanceNumber === 2) {
-          paymentType = '2nd Part Fees Payment'
-        } else if (instanceNumber === 3) {
-          paymentType = '3rd Part Fees Payment'
-        } else if (instanceNumber === 4) {
-          paymentType = '4th Part Fees Payment'
-        } else {
-          paymentType = `${instanceNumber}th Part Fees Payment`
-        }
-      }
-    } catch {
-      paymentType ??= 'Part Fees Payment'
-      instanceNumber ??= 1
-    }
-
     const result = await recordPaymentAtomic(client, {
       key: key.data,
       hash,
@@ -102,27 +74,15 @@ export async function createPayment(input: RecordPaymentInput, idempotencyKey: s
       method: input.method,
       date: input.date ?? new Date().toISOString().slice(0, 10),
       transactionId: input.transactionId ?? null,
-      customNote: input.customNote ?? paymentType,
-      gstRate: input.gstRate,
-      cgstPaise: rupeesToPaise(input.cgst ?? 0),
-      sgstPaise: rupeesToPaise(input.sgst ?? 0),
+      customNote: input.customNote ?? null,
+      paymentType: input.paymentType?.trim() || null,
       verificationCode: generateVerificationCode(10),
     })
 
-    if (result.payment?.id) {
-      try {
-        await client
-          .from('payments')
-          .update({
-            payment_type: paymentType,
-            instance_number: instanceNumber,
-          })
-          .eq('id', result.payment.id)
-      } catch {
-        // Fallback gracefully
-      }
-    }
-
+    const instanceNumber =
+      result.payment.instance_number === null || result.payment.instance_number === undefined
+        ? undefined
+        : Number(result.payment.instance_number)
     const paymentRecord = {
       id: String(result.payment.id),
       student: String(result.student.name),
@@ -140,10 +100,13 @@ export async function createPayment(input: RecordPaymentInput, idempotencyKey: s
       sgst: paiseToRupees(Number(result.payment.sgst ?? 0)),
       transactionId: result.payment.transaction_id ? String(result.payment.transaction_id) : null,
       customNote: result.payment.custom_note ? String(result.payment.custom_note) : null,
-      paymentType,
+      paymentType: result.payment.payment_type ? String(result.payment.payment_type) : undefined,
       instanceNumber,
       instance: instanceNumber,
       gstRate: Number(result.payment.gst_rate ?? 0),
+      gstInclusive: Boolean(result.payment.gst_inclusive),
+      taxableValue: paiseToRupees(Number(result.payment.taxable_value ?? result.payment.amount)),
+      grandTotal: paiseToRupees(Number(result.payment.grand_total ?? result.payment.amount)),
       verification_code: result.verification_code,
     }
 

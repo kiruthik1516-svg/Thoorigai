@@ -30,5 +30,6 @@ export const GET = withApi(
 
 export const POST = withApi(
   { roles: rolesFor('students', 'create'), body: createStudentSchema, successStatus: 201 },
-  async ({ body }) => apiResult(await createStudent(body), { status: 201 }),
+  async ({ body, request }) =>
+    apiResult(await createStudent(body, request.headers.get('Idempotency-Key')), { status: 201 }),
 )

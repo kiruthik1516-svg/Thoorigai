@@ -33,7 +33,7 @@ vi.mock('@/lib/auth/current-profile', () => ({ getCurrentProfile: mocks.getCurre
 
 import { createPayment, getPaymentByInvoice, listPaymentPage } from './service'
 
-const input = { studentId: 7, amount: 100, method: 'UPI', gstRate: 18, cgst: 9, sgst: 9 }
+const input = { studentId: 7, amount: 100, method: 'UPI' }
 const stored = {
   payment: {
     id: 2,
@@ -46,6 +46,11 @@ const stored = {
     cgst: 900,
     sgst: 900,
     gst_rate: 18,
+    gst_inclusive: false,
+    taxable_value: 10000,
+    grand_total: 11800,
+    payment_type: '3rd Part Fees Payment',
+    instance_number: 3,
   },
   student: { name: 'Asha' },
   verification_code: 'v1',
@@ -97,8 +102,28 @@ describe('payment service', () => {
     expect(payment).toMatchObject({ id: '2', amount: 100, invoice: 'TAI-1', student: 'Asha', verification_code: 'v1' })
     expect(mocks.recordPaymentAtomic).toHaveBeenCalledWith(
       expect.anything(),
-      expect.objectContaining({ studentRegisterId: 7, amountPaise: 10000, cgstPaise: 900, sgstPaise: 900 }),
+      expect.objectContaining({ studentRegisterId: 7, amountPaise: 10000, paymentType: null }),
     )
+    // F-08: no client tax reaches the database call.
+    const args = mocks.recordPaymentAtomic.mock.calls.at(-1)?.[1]
+    expect(args).not.toHaveProperty('cgstPaise')
+    expect(args).not.toHaveProperty('gstRate')
+  })
+
+  it('returns the tax, type and instance decided by the database (F-07, F-16)', async () => {
+    const payment = await createPayment({ ...input, paymentType: '  ' }, 'payment-test-2')
+    expect(payment).toMatchObject({
+      cgst: 9,
+      sgst: 9,
+      gstInclusive: false,
+      taxableValue: 100,
+      grandTotal: 118,
+      paymentType: '3rd Part Fees Payment',
+      instanceNumber: 3,
+    })
+    expect(mocks.recordPaymentAtomic.mock.calls.at(-1)?.[1]).toMatchObject({ paymentType: null })
+    await createPayment({ ...input, paymentType: 'Registration Fees' }, 'payment-test-3')
+    expect(mocks.recordPaymentAtomic.mock.calls.at(-1)?.[1]).toMatchObject({ paymentType: 'Registration Fees' })
   })
 
   it.each([
@@ -143,32 +168,6 @@ describe('payment service', () => {
     expect(mocks.paymentFromRow).toHaveBeenCalledWith(
       expect.objectContaining({ verification_code: 'verify-1', student_name: 'Asha' }),
     )
-  })
-
-  it.each([
-    [0, '1st Part Fees Payment', 1],
-    [1, '2nd Part Fees Payment', 2],
-    [2, '3rd Part Fees Payment', 3],
-    [3, '4th Part Fees Payment', 4],
-    [4, '5th Part Fees Payment', 5],
-  ])(
-    'calculates installment milestone automatically when prior count is %i',
-    async (priorCount, expectedType, expectedInstance) => {
-      mocks.paymentCount = priorCount
-      let recordedArgs: any = null
-      mocks.recordPaymentAtomic.mockImplementationOnce(async (_client, args) => {
-        recordedArgs = args
-        return stored
-      })
-      const payment = await createPayment({ ...input, method: 'UPI' }, `payment-test-inst-${priorCount}`)
-      expect(payment).toBeDefined()
-    },
-  )
-
-  it('handles database error when querying payment count gracefully', async () => {
-    mocks.countError = true
-    const payment = await createPayment({ ...input, method: 'Cash' }, 'payment-test-custom')
-    expect(payment).toBeDefined()
   })
 
   it('re-throws unexpected payment RPC errors', async () => {

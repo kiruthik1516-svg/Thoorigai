@@ -8,7 +8,7 @@ import { paymentFromRow, studentFromRow } from '@/lib/server-data'
 import { unexpectedApiError } from '@/lib/api-response'
 import QRCode from 'qrcode'
 import { brand } from '@/lib/brand'
-import { calculateGstFromParts, calculateGstInclusive, formatINR, rupeesToPaise } from '@/lib/money'
+import { formatINR } from '@/lib/money'
 import { rolesFor } from '@/lib/auth/permissions'
 import { withApi } from '@/lib/http/handler'
 import { z } from 'zod'
@@ -18,6 +18,9 @@ import { logger } from '@/lib/logger'
 
 export const runtime = 'nodejs'
 export const maxDuration = 15
+
+// F-33: bump whenever the PDF layout or tax presentation changes, so cached copies are regenerated.
+const INVOICE_TEMPLATE_VERSION = '2026-11-18.1'
 
 async function getCachedPdf(cachePath: string): Promise<Uint8Array | null> {
   try {
@@ -98,7 +101,13 @@ async function getInvoicePdf(supabase: SupabaseClient, context: { params: Promis
   // verification code create a fresh private cache object without serving stale PDFs.
   const pdfVersion = createHash('sha256')
     .update(
-      JSON.stringify({ paymentRow, studentRow, gstin, verificationCode: verification?.verification_code ?? null }),
+      JSON.stringify({
+        template: INVOICE_TEMPLATE_VERSION,
+        paymentRow,
+        studentRow,
+        gstin,
+        verificationCode: verification?.verification_code ?? null,
+      }),
     )
     .digest('hex')
   const paymentCacheId = createHash('sha256').update(String(paymentRow.id)).digest('hex')
@@ -115,20 +124,12 @@ async function getInvoicePdf(supabase: SupabaseClient, context: { params: Promis
     })
   }
 
-  const storedGstRate = Number(payment.gstRate ?? 18)
-  const storedCgst = Number(payment.cgst ?? 0)
-  const storedSgst = Number(payment.sgst ?? 0)
-  const grossAmount = Number(payment.amount ?? 0)
-
-  const grossPaise = rupeesToPaise(grossAmount)
-  const cgstPaise = rupeesToPaise(storedCgst)
-  const sgstPaise = rupeesToPaise(storedSgst)
-  const invoiceBreakdown =
-    cgstPaise > 0 || sgstPaise > 0
-      ? calculateGstFromParts(grossPaise, cgstPaise, sgstPaise)
-      : calculateGstInclusive(grossPaise, storedGstRate)
-  const taxablePaise = invoiceBreakdown.taxablePaise
-  const totalGstPaise = invoiceBreakdown.gstPaise
+  // F-07: print exactly what the database stored. taxable_value and grand_total are generated
+  // columns that respect the payment's own gst_inclusive flag; nothing is recomputed here.
+  const storedGstRate = Number(paymentRow.gst_rate ?? 0)
+  const totalGstPaise = Number(paymentRow.cgst ?? 0) + Number(paymentRow.sgst ?? 0)
+  const taxablePaise = Number(paymentRow.taxable_value ?? paymentRow.amount ?? 0)
+  const grossPaise = Number(paymentRow.grand_total ?? Number(paymentRow.amount ?? 0) + totalGstPaise)
 
   const pdf = await PDFDocument.create()
   pdf.registerFontkit(fontkit)

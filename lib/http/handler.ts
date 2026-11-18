@@ -197,8 +197,7 @@ export function withApi<TOptions extends ApiOptions, TResult>(
         role = profile.role
         requireRole(role, options.roles ?? [])
         const userLimit =
-          options.userRateLimit ??
-          (MUTATION_METHODS.includes(request.method) ? DEFAULT_MUTATION_RATE_LIMIT : undefined)
+          options.userRateLimit ?? (MUTATION_METHODS.includes(request.method) ? DEFAULT_MUTATION_RATE_LIMIT : undefined)
         if (userLimit && user) {
           let result: Awaited<ReturnType<typeof rateLimit>>
           try {

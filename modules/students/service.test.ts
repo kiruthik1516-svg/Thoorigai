@@ -119,7 +119,21 @@ describe('student service', () => {
       10000,
       expect.any(String),
       expect.any(String),
+      null,
     )
+  })
+
+  it('passes an idempotency key and request hash when the client sends one (F-19)', async () => {
+    mocks.role = 'admin'
+    mocks.createStudentWithPaymentAtomic.mockResolvedValueOnce({
+      student: { id: 2, register_id: 1001, name: 'Asha', paid: 0, total: 10000, status: 'Pending' },
+      initial_payment: null,
+    })
+    await createStudent(input, 'enrol-key-1')
+    const idempotency = mocks.createStudentWithPaymentAtomic.mock.calls.at(-1)?.[5]
+    expect(idempotency).toMatchObject({ key: 'enrol-key-1' })
+    expect(idempotency.hash).toMatch(/^[0-9a-f]{64}$/)
+    await expect(createStudent(input, '   ')).rejects.toThrow('Idempotency-Key')
   })
 
   it('returns no detail for missing students and combines student and payment data when present', async () => {

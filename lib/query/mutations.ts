@@ -10,7 +10,8 @@ export type RecordPaymentResult = Payment
 export function useCreateStudentMutation() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (student: unknown) => apiClient.post<CreateStudentResult, unknown>('/api/students', student),
+    mutationFn: ({ student, idempotencyKey }: { student: unknown; idempotencyKey: string }) =>
+      apiClient.post<CreateStudentResult, unknown>('/api/students', student, { idempotencyKey }),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['students'] })
     },

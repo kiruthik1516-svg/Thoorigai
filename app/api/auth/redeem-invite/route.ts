@@ -42,7 +42,10 @@ async function postRedeemInvite(request: Request, requestId: string) {
     const { email, password } = parsed.data
     const code = normalizeInviteCode(parsed.data.code)
     if (!code) {
-      return NextResponse.json({ error: 'Invalid invite code or OTP. Please check the code.' }, { status: 400, headers })
+      return NextResponse.json(
+        { error: 'Invalid invite code or OTP. Please check the code.' },
+        { status: 400, headers },
+      )
     }
 
     // 1. Prove account ownership.
@@ -58,11 +61,7 @@ async function postRedeemInvite(request: Request, requestId: string) {
     const userId = authData.user.id
     const adminClient = getSupabaseAdminClient(requestId)
 
-    const { data: profile } = await adminClient
-      .from('profiles')
-      .select('id, role')
-      .eq('id', userId)
-      .maybeSingle()
+    const { data: profile } = await adminClient.from('profiles').select('id, role').eq('id', userId).maybeSingle()
     if (!profile) {
       return NextResponse.json({ error: 'User profile not found.' }, { status: 404, headers })
     }

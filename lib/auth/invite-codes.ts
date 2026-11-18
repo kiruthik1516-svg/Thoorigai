@@ -24,8 +24,7 @@ export type InviteRecord = {
 }
 
 export type InviteCheck =
-  | { ok: true; invite: InviteRecord }
-  | { ok: false; reason: 'not_found' | 'used' | 'expired' | 'email_mismatch' }
+  { ok: true; invite: InviteRecord } | { ok: false; reason: 'not_found' | 'used' | 'expired' | 'email_mismatch' }
 
 /**
  * Read-only pre-check used to give users a helpful message before any account change.
@@ -45,11 +44,7 @@ export async function checkInviteCode(
   if (error || !invite) return { ok: false, reason: 'not_found' }
   if (invite.is_used) return { ok: false, reason: 'used' }
   if (new Date(invite.expires_at).getTime() < Date.now()) return { ok: false, reason: 'expired' }
-  if (
-    email &&
-    invite.recipient_email &&
-    invite.recipient_email.toLowerCase().trim() !== email.toLowerCase().trim()
-  ) {
+  if (email && invite.recipient_email && invite.recipient_email.toLowerCase().trim() !== email.toLowerCase().trim()) {
     return { ok: false, reason: 'email_mismatch' }
   }
   return { ok: true, invite: invite as InviteRecord }

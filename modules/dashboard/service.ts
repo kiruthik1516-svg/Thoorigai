@@ -26,6 +26,7 @@ export async function getDashboardSummary(): Promise<DashboardSummary> {
   return {
     studentCount: safeInteger(summary.studentCount),
     revenuePaise: safeInteger(summary.revenuePaise),
+    gstCollectedPaise: summary.gstCollectedPaise === undefined ? undefined : safeInteger(summary.gstCollectedPaise),
     outstandingPaise: safeInteger(summary.outstandingPaise),
     eligibleCount: safeInteger(summary.eligibleCount),
     monthlyRevenuePaise: safeInteger(summary.monthlyRevenuePaise),
@@ -52,6 +53,7 @@ export async function getDashboardSummaryForPeriod(startDate: string, endDate: s
   return {
     studentCount: safeInteger(summary.studentCount),
     revenuePaise: safeInteger(summary.revenuePaise),
+    gstCollectedPaise: summary.gstCollectedPaise === undefined ? undefined : safeInteger(summary.gstCollectedPaise),
     outstandingPaise: safeInteger(summary.outstandingPaise),
     eligibleCount: safeInteger(summary.eligibleCount),
     monthlyRevenuePaise: safeInteger(summary.monthlyRevenuePaise),

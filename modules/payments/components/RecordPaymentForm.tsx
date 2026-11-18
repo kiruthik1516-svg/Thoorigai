@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
@@ -80,6 +80,9 @@ export function RecordPaymentForm({ initialStudent = null, students, courses, gs
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
   const [showConfirmModal, setShowConfirmModal] = useState(false)
+  // F-19: one idempotency key per payment, reused on every retry of the same details until the
+  // server confirms it. Changing the details starts a new payment with a new key.
+  const idempotencyRef = useRef<{ key: string; signature: string } | null>(null)
 
   // Current balance of selected student
   const balance = selectedStudent ? Math.max(0, differenceRupees(selectedStudent.total, selectedStudent.paid)) : 0
@@ -91,18 +94,6 @@ export function RecordPaymentForm({ initialStudent = null, students, courses, gs
   }, [selectedStudent, courses])
 
   const isGstInclusive = Boolean(matchedCourse?.gstInclusive)
-
-  // Default payment type recommendation
-  useMemo(() => {
-    if (!selectedStudent) return
-    if (paymentType) return // don't override manual selection
-
-    if (selectedStudent.paid === 0) {
-      setPaymentType('1st Part Fees Payment')
-    } else {
-      setPaymentType('2nd Part Fees Payment')
-    }
-  }, [selectedStudent, paymentType])
 
   // Filtered students for search
   const filteredStudents = useMemo(() => {
@@ -133,11 +124,8 @@ export function RecordPaymentForm({ initialStudent = null, students, courses, gs
       setAmount('')
     }
 
-    if (student.paid === 0) {
-      setPaymentType('1st Part Fees Payment')
-    } else {
-      setPaymentType('2nd Part Fees Payment')
-    }
+    // Empty = automatic: the server labels it with the next instalment number (F-16).
+    setPaymentType('')
   }
 
   // Live tax breakdown
@@ -179,19 +167,22 @@ export function RecordPaymentForm({ initialStudent = null, students, courses, gs
     setFormError(null)
 
     try {
-      const idempotencyKey = crypto.randomUUID()
+      // GST is computed by the server from the GST settings and the course (F-08); the
+      // breakdown shown on this page is a preview only.
       const payload = {
         studentId: selectedStudent.registerId,
         amount: numAmount,
         method,
         date: date || new Date().toISOString().slice(0, 10),
-        paymentType: paymentType || 'Part Fees Payment',
+        paymentType: paymentType || undefined,
         transactionId: transactionId.trim() || undefined,
         customNote: customNote.trim() || undefined,
-        gstRate,
-        cgst: gstBreakdown.cgstAmount,
-        sgst: gstBreakdown.sgstAmount,
       }
+      const signature = JSON.stringify(payload)
+      if (idempotencyRef.current?.signature !== signature) {
+        idempotencyRef.current = { key: crypto.randomUUID(), signature }
+      }
+      const idempotencyKey = idempotencyRef.current.key
 
       const res = await fetch('/api/payments', {
         method: 'POST',
@@ -207,6 +198,7 @@ export function RecordPaymentForm({ initialStudent = null, students, courses, gs
         throw new Error(json?.message || 'Failed to record payment.')
       }
 
+      idempotencyRef.current = null
       const invoiceNum = json?.data?.invoice || ''
 
       // Seamless redirect directly to the student profile
@@ -605,6 +597,7 @@ export function RecordPaymentForm({ initialStudent = null, students, courses, gs
                     onChange={(e) => setPaymentType(e.target.value)}
                     className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs font-semibold text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 appearance-none shadow-2xs"
                   >
+                    <option value="">Automatic (next instalment)</option>
                     {PAYMENT_TYPES.map((type) => (
                       <option key={type} value={type}>
                         {type}
@@ -735,7 +728,7 @@ export function RecordPaymentForm({ initialStudent = null, students, courses, gs
                 <div className="flex justify-between items-center text-slate-600">
                   <span>Milestone Tier</span>
                   <span className="font-semibold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200">
-                    {paymentType || 'Part Fees Payment'}
+                    {paymentType || 'Next instalment (automatic)'}
                   </span>
                 </div>
 
@@ -868,7 +861,7 @@ export function RecordPaymentForm({ initialStudent = null, students, courses, gs
                 <div className="flex justify-between items-center pb-2 border-b border-slate-200">
                   <span className="text-slate-500">Installment Tier</span>
                   <span className="font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200">
-                    {paymentType}
+                    {paymentType || 'Next instalment (automatic)'}
                   </span>
                 </div>
 

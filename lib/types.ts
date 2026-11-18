@@ -122,6 +122,12 @@ export type Payment = {
   cgst?: number
   /** SGST in rupees at the API/UI boundary; the database stores integer paise. */
   sgst?: number
+  /** Whether the course fee included GST when the payment was recorded (stored per payment). */
+  gstInclusive?: boolean
+  /** Taxable value in rupees: amount minus GST when inclusive, otherwise the amount. */
+  taxableValue?: number
+  /** Invoice total in rupees: the amount when inclusive, otherwise amount plus GST. */
+  grandTotal?: number
   /** ISO date (YYYY-MM-DD) — used when read from storage; same info as .date */
   paymentDate?: string
   /** Verification code for public verification */

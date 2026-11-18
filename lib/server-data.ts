@@ -41,7 +41,18 @@ export function paymentFromRow(row: Record<string, unknown>): Payment {
   const cgst = paiseToRupees(Number(row.cgst ?? 0))
   const sgst = paiseToRupees(Number(row.sgst ?? 0))
   const gstRate = Number(row.gst_rate ?? row.gstRate ?? 0)
+  // F-07: the stored flag decides the invoice maths; never re-derive it from the course today.
+  const gstInclusive = Boolean(row.gst_inclusive)
+  const amountPaise = Number(row.amount ?? 0)
+  const gstPaise = Number(row.cgst ?? 0) + Number(row.sgst ?? 0)
+  const taxablePaise =
+    row.taxable_value != null ? Number(row.taxable_value) : gstInclusive ? amountPaise - gstPaise : amountPaise
+  const totalPaise =
+    row.grand_total != null ? Number(row.grand_total) : gstInclusive ? amountPaise : amountPaise + gstPaise
   const base: Payment = {
+    gstInclusive,
+    taxableValue: paiseToRupees(taxablePaise),
+    grandTotal: paiseToRupees(totalPaise),
     id: String(row.id),
     student: String(row.student_name ?? row.student ?? ''),
     method: String(row.method),
@@ -177,6 +188,7 @@ export async function listPayments(
     `
       id, student_id, student_register_id, method, amount, invoice, payment_date,
       transaction_id, custom_note, payment_type, instance_number, gst_rate, cgst, sgst,
+      gst_inclusive, taxable_value, grand_total,
       students!payments_student_id_fkey ( id, name, course )
     `,
     options.keyset ? undefined : { count: 'exact' },

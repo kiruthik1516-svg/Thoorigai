@@ -44,6 +44,7 @@ import { type ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } f
 import { Button } from '@/components/ui/button'
 import type { Payment, Student, Course, CourseCategory } from '@/lib/types'
 import { money } from '@/lib/formatters'
+import { paiseToRupees, rupeesToPaise } from '@/lib/money'
 import { PaymentsTable } from '@/components/shared/PaymentsTable'
 import { KpiCard } from '@/components/ui/KpiCard'
 
@@ -1065,6 +1066,14 @@ export function ReportsView({
   }, [categories, courses, students, paidPerStudent])
 
   const revenue = useMemo(() => filteredPayments.reduce((sum, p) => sum + p.amount, 0), [filteredPayments])
+  // F-18: GST is reported separately from fee revenue (summed in paise to avoid float drift).
+  const gstCollected = useMemo(
+    () =>
+      paiseToRupees(
+        filteredPayments.reduce((sum, p) => sum + rupeesToPaise(p.cgst ?? 0) + rupeesToPaise(p.sgst ?? 0), 0),
+      ),
+    [filteredPayments],
+  )
   const totalFees = useMemo(() => students.reduce((s, x) => s + x.total, 0), [students])
   const totalPaid = useMemo(
     () => students.reduce((s, x) => s + (paidPerStudent[x.registerId] ?? x.paid ?? 0), 0),
@@ -1320,7 +1329,7 @@ export function ReportsView({
         <KpiCard
           title="Revenue collected"
           value={money(revenue)}
-          subtitle="In selected period"
+          subtitle={`In selected period · GST ${money(gstCollected)}`}
           icon={CircleDollarSign}
         />
 

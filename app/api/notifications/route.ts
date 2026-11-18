@@ -1,11 +1,7 @@
 import { z } from 'zod'
 import { apiResult, withApi } from '@/lib/http/handler'
 import { getCurrentProfile } from '@/lib/auth/current-profile'
-import {
-  listUserNotifications,
-  markNotificationRead,
-  markAllNotificationsRead,
-} from '@/modules/notifications/service'
+import { listUserNotifications, markNotificationRead, markAllNotificationsRead } from '@/modules/notifications/service'
 import type { AppNotification } from '@/modules/notifications/types'
 
 export type { AppNotification }

@@ -77,7 +77,7 @@ export function InvoicePrint({
   payment,
   student,
   onBack,
-  gstRate = 18,
+  gstRate: currentGstRate = 18,
   gstin,
   courses,
 }: {
@@ -119,17 +119,27 @@ export function InvoicePrint({
   })
 
   const matchedCourse = courses?.find((c) => c.name === effectiveCourse(form))
-  const isInclusive = Boolean(matchedCourse?.gstInclusive)
+  // F-07: a recorded payment carries its own tax treatment and amounts. Use them while the amount
+  // is unchanged, so later course or GST-setting edits never alter an issued invoice.
+  const usesStoredTax =
+    payment.gstInclusive !== undefined &&
+    payment.taxableValue !== undefined &&
+    payment.grandTotal !== undefined &&
+    form.grossAmount === String(payment.amount)
+  const isInclusive = usesStoredTax ? Boolean(payment.gstInclusive) : Boolean(matchedCourse?.gstInclusive)
 
   const gross = parseFloat(form.grossAmount) || 0
   const grossPaise = rupeesToPaise(gross)
   const breakdown = isInclusive
-    ? calculateGstInclusive(grossPaise, gstRate)
-    : calculateGstExclusive(grossPaise, gstRate)
-  const taxableValue = paiseToRupees(breakdown.taxablePaise)
-  const gstAmount = paiseToRupees(breakdown.gstPaise)
-  const halfGst = paiseToRupees(breakdown.cgstPaise)
-  const grandTotal = paiseToRupees(breakdown.totalPaise)
+    ? calculateGstInclusive(grossPaise, currentGstRate)
+    : calculateGstExclusive(grossPaise, currentGstRate)
+  const taxableValue = usesStoredTax ? Number(payment.taxableValue) : paiseToRupees(breakdown.taxablePaise)
+  const gstAmount = usesStoredTax
+    ? paiseToRupees(rupeesToPaise(payment.cgst ?? 0) + rupeesToPaise(payment.sgst ?? 0))
+    : paiseToRupees(breakdown.gstPaise)
+  const halfGst = usesStoredTax ? Number(payment.cgst ?? 0) : paiseToRupees(breakdown.cgstPaise)
+  const grandTotal = usesStoredTax ? Number(payment.grandTotal) : paiseToRupees(breakdown.totalPaise)
+  const gstRate = usesStoredTax ? (payment.gstRate ?? 0) : currentGstRate
 
   const containerRef = useRef<HTMLElement>(null)
   const [scale, setScale] = useState(1)

@@ -10,6 +10,8 @@ import { generateVerificationCode } from '@/lib/utils'
 import { createStudentWithPaymentAtomic } from './repository'
 import type { CreateStudentInput } from './schema'
 import { getCurrentProfile } from '@/lib/auth/current-profile'
+import { createHash } from 'node:crypto'
+import { idempotencyKeySchema } from '@/modules/payments/schema'
 import { createNotification } from '@/modules/notifications/service'
 
 function authorizeStudent(role: Role, action: 'read' | 'create') {
@@ -41,9 +43,15 @@ export async function listStudentPage(options: {
 }
 
 /** Creates a student and optional first payment through the atomic database workflow. */
-export async function createStudent(input: CreateStudentInput) {
+export async function createStudent(input: CreateStudentInput, idempotencyKey: string | null = null) {
   const { role } = await getCurrentProfile()
   authorizeStudent(role, 'create')
+  let idempotency: { key: string; hash: string } | null = null
+  if (idempotencyKey !== null) {
+    const key = idempotencyKeySchema.safeParse(idempotencyKey)
+    if (!key.success) throw new ValidationError('The Idempotency-Key header is invalid.')
+    idempotency = { key: key.data, hash: createHash('sha256').update(JSON.stringify(input)).digest('hex') }
+  }
   if (input.paid > input.total) throw new ValidationError('Paid amount cannot exceed total fees.')
   // F-03: payments are admin-only. Staff enrol with the fee set and no initial payment.
   if (input.paid > 0 && !can(role, 'payments', 'create')) {
@@ -57,6 +65,7 @@ export async function createStudent(input: CreateStudentInput) {
     rupeesToPaise(input.paid),
     paymentDate,
     generateVerificationCode(10),
+    idempotency,
   )
   const student = {
     ...studentFromRow(rpcResult.student),

@@ -36,17 +36,11 @@ export const paymentSchema = z.object({
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/, { message: 'Date must be in YYYY-MM-DD format' })
     .optional(),
-  transactionId: z.union([z.string(), z.null()]).optional(),
-  customNote: z.union([z.string(), z.null()]).optional(),
-  paymentType: z.union([z.string(), z.null()]).optional(),
-  instanceNumber: z.union([z.number(), z.null()]).optional(),
-  invoice: z.union([z.string(), z.null()]).optional(),
-  id: z.union([z.string(), z.null()]).optional(),
-  gstRate: z.number().int().nonnegative().default(18),
-  taxableValue: z.number().nonnegative().optional(),
-  cgst: z.number().nonnegative().optional(),
-  sgst: z.number().nonnegative().optional(),
-  gstInclusive: z.boolean().optional(),
+  transactionId: z.union([z.string().max(100), z.null()]).optional(),
+  customNote: z.union([z.string().max(500), z.null()]).optional(),
+  paymentType: z.union([z.string().max(100), z.null()]).optional(),
+  // GST rate, CGST/SGST, invoice number and instalment number are decided by the database
+  // (F-07, F-08, F-16). Unknown keys such as cgst are stripped, so older clients still work.
 })
 
 export const courseCategorySchema = z.object({

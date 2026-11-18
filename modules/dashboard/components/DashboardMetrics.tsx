@@ -96,7 +96,10 @@ export function DashboardMetrics({
     {
       label: 'Revenue collected',
       value: money(revenue),
-      sub: 'Total collected to date',
+      sub:
+        summary.gstCollectedPaise === undefined
+          ? 'Total collected to date'
+          : `Total collected to date · GST ${money(paiseToRupees(summary.gstCollectedPaise))}`,
       Icon: CircleDollarSign,
       iconClass: 'icon-green',
     },

@@ -79,7 +79,10 @@ async function postSignup(request: Request, requestId: string) {
         )
       }
       logger.warn({ requestId, errorType: authError?.name }, 'Signup createUser failed')
-      return NextResponse.json({ error: 'Unable to complete registration. Please try again.' }, { status: 400, headers })
+      return NextResponse.json(
+        { error: 'Unable to complete registration. Please try again.' },
+        { status: 400, headers },
+      )
     }
 
     const userId = authData.user.id
@@ -94,7 +97,10 @@ async function postSignup(request: Request, requestId: string) {
           app_metadata: { role: assignedRole },
         })
         if (metaError) {
-          logger.error({ requestId, userId, errorType: metaError.name }, 'Failed to sync app_metadata role after signup')
+          logger.error(
+            { requestId, userId, errorType: metaError.name },
+            'Failed to sync app_metadata role after signup',
+          )
         }
       } else {
         // Lost a race for the invite (or it changed since the pre-check). The account remains pending.

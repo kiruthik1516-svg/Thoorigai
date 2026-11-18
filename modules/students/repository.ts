@@ -9,8 +9,13 @@ export async function createStudentWithPaymentAtomic(
   initialPaymentPaise: number,
   paymentDate: string,
   verificationCode: string,
+  idempotency: { key: string; hash: string } | null = null,
 ) {
-  const { data, error } = await client.rpc('create_student_with_payment', {
+  // F-19: with a key, replaying the same request returns the original student instead of
+  // enrolling them twice.
+  const rpcName = idempotency ? 'create_student_with_payment_idempotent' : 'create_student_with_payment'
+  const { data, error } = await client.rpc(rpcName, {
+    ...(idempotency ? { p_idempotency_key: idempotency.key, p_request_hash: idempotency.hash } : {}),
     p_student: {
       name: student.name,
       phone: student.phone,

@@ -10,12 +10,15 @@ export type AtomicPaymentInput = {
   date: string
   transactionId: string | null
   customNote: string | null
-  gstRate: number
-  cgstPaise: number
-  sgstPaise: number
+  /** Optional label; the database derives "<n>th Part Fees Payment" when null. */
+  paymentType: string | null
   verificationCode: string
 }
 
+/**
+ * Records a payment. GST rate, CGST/SGST, the inclusive flag, payment type and instalment
+ * number are all decided inside the database transaction (F-07, F-08, F-16).
+ */
 export async function recordPaymentAtomic(client: SupabaseClient, input: AtomicPaymentInput) {
   const { data, error } = await client.rpc('record_payment_idempotent', {
     p_idempotency_key: input.key,
@@ -26,9 +29,7 @@ export async function recordPaymentAtomic(client: SupabaseClient, input: AtomicP
     p_payment_date: input.date,
     p_transaction_id: input.transactionId,
     p_custom_note: input.customNote,
-    p_gst_rate: input.gstRate,
-    p_cgst: input.cgstPaise,
-    p_sgst: input.sgstPaise,
+    p_payment_type: input.paymentType,
     p_verification_code: input.verificationCode,
   })
   if (error) throw error
