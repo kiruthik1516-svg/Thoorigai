@@ -63,7 +63,7 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm test:coverage
-      - uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
           name: unit-coverage
@@ -141,7 +141,7 @@ jobs:
           SENTRY_RELEASE: ${{ github.sha }}
           NEXT_PUBLIC_SENTRY_RELEASE: ${{ github.sha }}
         run: pnpm build && pnpm build:budget && pnpm build:client-budget
-      - uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: next-build-size
           path: |
@@ -177,7 +177,7 @@ jobs:
         run: node scripts/ci-supabase-env.mjs >> "$GITHUB_ENV"
       - run: pnpm build
       - run: pnpm exec playwright test --shard=${{ matrix.shard }}/3
-      - uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
           name: playwright-report-${{ matrix.shard }}
@@ -211,7 +211,7 @@ jobs:
           path: all-playwright-reports
           merge-multiple: true
       - run: pnpm exec playwright merge-reports --reporter html ./all-playwright-reports/blob-report
-      - uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
           name: playwright-report-merged
