@@ -89,7 +89,7 @@ test('authenticated student creation rejects invalid input without inserting a r
   expect(response.status()).toBe(400)
 })
 
-test('staff can create a student and admin can pay the balance, issue a certificate, and verify it anonymously', async ({
+test('staff enrols a student and admin pays in instalments, issues a certificate, and verifies it anonymously', async ({
   playwright,
   request,
   baseURL,
@@ -107,21 +107,27 @@ test('staff can create a student and admin can pay the balance, issue a certific
       course: 'Professional Course',
       batch: '2026-09-29',
       total: 1000,
-      paid: 250,
       knowledgeTags: [],
     },
   })
   expect(created.status()).toBe(201)
   const createdBody = await created.json()
-  expect(createdBody.data.data).toMatchObject({ name, paid: 250, status: 'Pending' })
-  expect(createdBody.data.payment.invoice).toBeTruthy()
+  // F-03: staff enrol without taking a payment; payments are admin-only.
+  expect(createdBody.data.data).toMatchObject({ name, paid: 0, status: 'Pending' })
   const registerId = createdBody.data.data.registerId as number
 
   const admin = await playwright.request.newContext({ baseURL, storageState: 'tests/.auth/admin.json' })
   try {
+    const first = await admin.post('/api/payments', {
+      headers: { ...headers, 'Idempotency-Key': `e2e-${crypto.randomUUID()}` },
+      data: { studentId: registerId, amount: 250, method: 'Cash', date: '2026-09-29' },
+    })
+    expect(first.status()).toBe(201)
+    expect((await first.json()).data.invoice).toBeTruthy()
+
     const completion = await admin.post('/api/payments', {
       headers: { ...headers, 'Idempotency-Key': `e2e-${crypto.randomUUID()}` },
-      data: { studentId: registerId, amount: 750, method: 'UPI', date: '2026-09-29', gstRate: 18 },
+      data: { studentId: registerId, amount: 750, method: 'UPI', date: '2026-09-29' },
     })
     expect(completion.status()).toBe(201)
     expect((await completion.json()).data).toMatchObject({ studentId: registerId, amount: 750 })

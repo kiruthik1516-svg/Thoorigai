@@ -13,16 +13,18 @@ test('staff can log in and sign out, and the expired session returns to login', 
 
     await page.getByRole('button', { name: 'Sign out' }).click()
     await expect(page).toHaveURL(/\/login$/)
+    // F-45: a signed-out deep link goes to login and comes back to the requested page.
     await page.goto('/students')
-    await expect(page).toHaveURL(/\/login$/)
+    await expect(page).toHaveURL(/\/login\?next=%2Fstudents$/)
 
     await page.getByLabel('Email address').fill(process.env.E2E_STAFF_EMAIL!)
     await page.getByLabel('Password', { exact: true }).fill(process.env.E2E_STAFF_PASSWORD!)
     await page.getByRole('button', { name: 'Sign in' }).click()
+    await expect(page).toHaveURL(/127\.0\.0\.1:3001\/students$/)
     await expect(page.getByRole('button', { name: 'Sign out' })).toBeVisible()
     await context.clearCookies()
     await page.goto('/students')
-    await expect(page).toHaveURL(/\/login$/)
+    await expect(page).toHaveURL(/\/login\?next=%2Fstudents$/)
   } finally {
     await context.close()
   }

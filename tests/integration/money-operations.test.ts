@@ -79,9 +79,8 @@ describe.skipIf(shouldSkip)('atomic money operations (local Supabase)', () => {
       p_payment_date: '2026-09-28',
       p_transaction_id: null,
       p_custom_note: null,
-      p_gst_rate: 0,
-      p_cgst: 0,
-      p_sgst: 0,
+      // Tax is computed by the database from the course (F-08); the client no longer sends it.
+      p_payment_type: null,
       p_verification_code: code,
     })
   }
@@ -123,7 +122,8 @@ describe.skipIf(shouldSkip)('atomic money operations (local Supabase)', () => {
 
   it('rolls back student and payment rows if the invoice verification insert fails', async () => {
     const duplicateCode = `rollback-${crypto.randomUUID()}`
-    const { error: seedError } = await userClient.from('verifiable_documents').insert({
+    // Users cannot write verification records directly (RLS), so the clash is seeded with the service role.
+    const { error: seedError } = await adminClient.from('verifiable_documents').insert({
       doc_type: 'invoice',
       reference_id: crypto.randomUUID(),
       verification_code: duplicateCode,

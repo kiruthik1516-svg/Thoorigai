@@ -24,7 +24,7 @@ select set_config('request.jwt.claims', '{"sub":"00000000-0000-4000-8000-0000000
 select lives_ok(
   $$ select public.record_payment_idempotent(
        'ledger-1', repeat('c', 64), (select register_id from public.students where name = 'Ledger Student'),
-       40000, 'Cash', current_date, null, null, 18, 3600, 3600, 'ledger-code-0001') $$,
+       40000, 'Cash', current_date, null, null, null, 'ledger-code-0001') $$,
   'admin records a first payment'
 );
 reset role;
@@ -49,13 +49,13 @@ select set_config('request.jwt.claims', '{"sub":"00000000-0000-4000-8000-0000000
 select throws_ok(
   $$ select public.record_payment_idempotent(
        'ledger-2', repeat('d', 64), (select register_id from public.students where name = 'Ledger Student'),
-       60001, 'Cash', current_date, null, null, 18, 0, 0, 'ledger-code-0002') $$,
+       60001, 'Cash', current_date, null, null, null, 'ledger-code-0002') $$,
   'P0001', 'PAYMENT_EXCEEDS_BALANCE', 'payments beyond the balance are rejected'
 );
 select lives_ok(
   $$ select public.record_payment_idempotent(
        'ledger-3', repeat('e', 64), (select register_id from public.students where name = 'Ledger Student'),
-       60000, 'UPI', current_date, null, null, 18, 5400, 5400, 'ledger-code-0003') $$,
+       60000, 'UPI', current_date, null, null, null, 'ledger-code-0003') $$,
   'admin records the final payment'
 );
 reset role;

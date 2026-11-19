@@ -10,6 +10,10 @@ values
 insert into public.students (name, phone, course, batch, total, paid, status)
 values ('Phase1 Student', '9000000001', 'Phase1 Course', 'B1', 100000, 0, 'Pending');
 
+-- F-28: staff enrol only into courses they are assigned to.
+insert into public.courses (id, name, fee) values ('p1-c', 'C', 1000);
+insert into public.course_trainers (course_id, trainer_id) values ('p1-c', '00000000-0000-4000-8000-0000000000b2');
+
 -- ── As staff ──────────────────────────────────────────────────────────────
 set local role authenticated;
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-4000-8000-0000000000b2","role":"authenticated"}', true);
@@ -20,7 +24,7 @@ select is((select count(*)::int from public.verifiable_documents), 0, 'staff can
 select throws_ok(
   $$ select public.record_payment_idempotent(
        'k1', repeat('a', 64), (select register_id from public.students where name = 'Phase1 Student'),
-       1000, 'Cash', current_date, null, null, 18, 90, 90, 'p1-code-0001') $$,
+       1000, 'Cash', current_date, null, null, null, 'p1-code-0001') $$,
   '42501', null, 'F-03: staff cannot record a payment'
 );
 
@@ -61,7 +65,7 @@ select set_config('request.jwt.claims', '{"sub":"00000000-0000-4000-8000-0000000
 select lives_ok(
   $$ select public.record_payment_idempotent(
        'k2', repeat('b', 64), (select register_id from public.students where name = 'Phase1 Student'),
-       1000, 'Cash', current_date, null, null, 18, 90, 90, 'p1-code-0004') $$,
+       1000, 'Cash', current_date, null, null, null, 'p1-code-0004') $$,
   'admin can record a payment'
 );
 select ok((select count(*) from public.payments) > 0, 'admin can read payments');

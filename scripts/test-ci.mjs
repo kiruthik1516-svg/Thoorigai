@@ -69,7 +69,8 @@ function localSupabaseEnv() {
         // a developer's .env.local for third-party rate-limit services.
         UPSTASH_REDIS_REST_URL: '',
         UPSTASH_REDIS_REST_TOKEN: '',
-        SUPABASE_TEST_USER_EMAIL: 'staff@thoorigai.test',
+        // Money operations are admin-only (F-03).
+        SUPABASE_TEST_USER_EMAIL: 'admin@thoorigai.test',
         SUPABASE_TEST_USER_PASSWORD: 'ThoorigaiLocal123!',
         E2E_ADMIN_EMAIL: 'admin@thoorigai.test',
         E2E_ADMIN_PASSWORD: 'ThoorigaiLocal123!',

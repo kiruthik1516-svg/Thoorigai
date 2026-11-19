@@ -73,6 +73,15 @@ on conflict (id) do update set
   gst_inclusive = excluded.gst_inclusive,
   updated_at = now();
 
+-- F-28: staff only reach courses they are assigned to. The local staff account covers every course
+-- (the E2E suite works across them); the trainer account is limited to one course.
+insert into public.course_trainers (course_id, trainer_id, assigned_by)
+select c.id, '00000000-0000-4000-8000-000000000002'::uuid, '00000000-0000-4000-8000-000000000001'::uuid
+from public.courses c
+union all
+select 'CRS-01', '00000000-0000-4000-8000-000000000003'::uuid, '00000000-0000-4000-8000-000000000001'::uuid
+on conflict (course_id, trainer_id) do nothing;
+
 insert into public.students (
   register_id, name, course, batch, total, paid, phone, status, gender, dob,
   email, country, state, city, area, lead_source, comments, knowledge_tags

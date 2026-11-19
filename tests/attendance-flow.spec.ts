@@ -4,7 +4,7 @@ test('staff can load a roster and mark a student present', async ({ page }) => {
   await page.setViewportSize({ width: 360, height: 800 })
   await page.goto('/attendance')
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(360)
-  const course = page.locator('select[name="courseId"]')
+  const course = page.locator('#panel-marking select[name="courseId"]')
   const options = await course.locator('option').count()
   expect(options).toBeGreaterThan(1)
   await course.selectOption({ index: 1 })

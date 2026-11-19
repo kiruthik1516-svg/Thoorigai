@@ -4,11 +4,10 @@ test('liveness returns build metadata and a request correlation ID without authe
   const response = await request.get('/api/health')
   expect(response.status()).toBe(200)
   expect(response.headers()['x-request-id']).toMatch(/^[0-9a-f-]{36}$/i)
-  expect(await response.json()).toMatchObject({
-    ok: true,
-    version: expect.any(String),
-    commit: expect.any(String),
-  })
+  const body = await response.json()
+  expect(body).toMatchObject({ ok: true, version: expect.any(String) })
+  // F-31: the deployed commit is not published.
+  expect(body).not.toHaveProperty('commit')
 })
 
 test('readiness verifies the local database migration and private materials bucket', async ({ request }) => {

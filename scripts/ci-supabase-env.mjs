@@ -35,7 +35,8 @@ const environment = {
   SUPABASE_TEST_URL: url,
   SUPABASE_TEST_PUBLISHABLE_KEY: publishableKey,
   SUPABASE_TEST_SERVICE_ROLE_KEY: serviceRoleKey,
-  SUPABASE_TEST_USER_EMAIL: 'staff@thoorigai.test',
+  // Money operations are admin-only (F-03).
+  SUPABASE_TEST_USER_EMAIL: 'admin@thoorigai.test',
   SUPABASE_TEST_USER_PASSWORD: 'ThoorigaiLocal123!',
   E2E_ADMIN_EMAIL: 'admin@thoorigai.test',
   E2E_ADMIN_PASSWORD: 'ThoorigaiLocal123!',
