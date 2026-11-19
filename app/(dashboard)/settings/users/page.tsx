@@ -1,7 +1,8 @@
 import { requirePermission } from '@/lib/auth/current-profile'
 import { createClient } from '@/lib/supabase/server'
 import { UserRoles } from '@/modules/shared/components/UserRoles'
-import type { Role } from '@/lib/types'
+import type { Role, UserContactDetails, UserMetadata } from '@/lib/types'
+import { jsonObject } from '@/lib/supabase/relations'
 
 export const dynamic = 'force-dynamic'
 
@@ -57,8 +58,8 @@ export default async function UsersSettingsPage({ searchParams }: { searchParams
           full_name: user.full_name,
           role: user.role as Role,
           created_at: user.created_at,
-          contact_details: (user.contact_details as any) || {},
-          metadata: (user.metadata as any) || {},
+          contact_details: jsonObject(user.contact_details) as UserContactDetails,
+          metadata: jsonObject(user.metadata) as UserMetadata,
         }))}
         currentUserId={profile.id}
         initialFilter={params?.filter}

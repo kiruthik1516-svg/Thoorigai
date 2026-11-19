@@ -7,9 +7,23 @@ import z from 'zod'
 import { pagePaginationFromSearchParams } from '@/lib/pagination'
 import { withApi } from '@/lib/http/handler'
 import { rolesFor } from '@/lib/auth/permissions'
+import type { Database, TablesInsert } from '@/lib/supabase/database.types'
+
+type AssessmentListItem = {
+  id: string
+  courseId: string
+  courseName: string | undefined
+  title: string
+  maxScore: number
+  assessmentDate: string
+  formUrl: ReturnType<typeof safeFormUrl>
+  sheetUrl: ReturnType<typeof safeSheetUrl>
+  createdBy: { id: string; fullName: string; role: string } | null
+  createdAt: string | null
+}
 
 // F-29: authentication, the role check, CSRF and body validation happen in withApi.
-async function getAssessments(req: Request, supabase: SupabaseClient) {
+async function getAssessments(req: Request, supabase: SupabaseClient<Database>) {
   try {
     const { searchParams } = new URL(req.url)
     const courseId = searchParams.get('courseId')
@@ -37,7 +51,7 @@ async function getAssessments(req: Request, supabase: SupabaseClient) {
       query = query.eq('course_id', courseId)
     }
 
-    let formattedData: any[] = []
+    let formattedData: AssessmentListItem[] = []
     let totalCount = 0
 
     const { data, error, count } = await query
@@ -46,7 +60,7 @@ async function getAssessments(req: Request, supabase: SupabaseClient) {
 
     if (!error && data) {
       totalCount = count || data.length
-      formattedData = data.map((record: any) => {
+      formattedData = data.map((record) => {
         const course = normalizeJoined(record.courses)
         const profile = normalizeJoined(record.profiles)
         return {
@@ -85,20 +99,20 @@ async function getAssessments(req: Request, supabase: SupabaseClient) {
       const records = fbResult.data ?? []
       totalCount = fbResult.count ?? records.length
 
-      const courseIds = Array.from(new Set(records.map((r: any) => r.course_id).filter(Boolean)))
-      const userIds = Array.from(new Set(records.map((r: any) => r.created_by).filter(Boolean)))
+      const courseIds = Array.from(new Set(records.map((r) => r.course_id)))
+      const userIds = Array.from(new Set(records.map((r) => r.created_by).filter((id): id is string => Boolean(id))))
       let courseMap = new Map<string, string>()
       let profileMap = new Map<string, { id: string; fullName: string; role: string }>()
 
       if (courseIds.length > 0) {
         const { data: cData } = await supabase.from('courses').select('id, name').in('id', courseIds)
-        if (cData) courseMap = new Map(cData.map((c: any) => [c.id, c.name]))
+        if (cData) courseMap = new Map(cData.map((c) => [c.id, c.name]))
       }
       if (userIds.length > 0) {
         const { data: pData } = await supabase.from('profiles').select('id, full_name, role').in('id', userIds)
         if (pData) {
           profileMap = new Map(
-            pData.map((p: any) => [
+            pData.map((p) => [
               p.id,
               { id: String(p.id), fullName: String(p.full_name || ''), role: String(p.role || 'staff') },
             ]),
@@ -106,7 +120,7 @@ async function getAssessments(req: Request, supabase: SupabaseClient) {
         }
       }
 
-      formattedData = records.map((record: any) => ({
+      formattedData = records.map((record) => ({
         id: record.id,
         courseId: record.course_id,
         courseName: courseMap.get(String(record.course_id)) ?? '',
@@ -133,7 +147,11 @@ async function getAssessments(req: Request, supabase: SupabaseClient) {
   }
 }
 
-async function postAssessment(parsedBody: z.infer<typeof assessmentSchema>, supabase: SupabaseClient, user: User) {
+async function postAssessment(
+  parsedBody: z.infer<typeof assessmentSchema>,
+  supabase: SupabaseClient<Database>,
+  user: User,
+) {
   const { data: profile } = await supabase
     .from('profiles')
     .select('id, full_name, role')
@@ -159,7 +177,7 @@ async function postAssessment(parsedBody: z.infer<typeof assessmentSchema>, supa
     if (courseError) return unexpectedApiError(courseError, 'Unable to load assessment course')
 
     // Insert assessment record
-    const assessmentData: Record<string, any> = {
+    const assessmentData: TablesInsert<'assessments'> = {
       course_id: courseId,
       title,
       max_score: maxScore,

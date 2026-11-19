@@ -4,7 +4,11 @@ import { parseCursorListQuery } from '@/modules/shared/list-query'
 import { RecordList } from '@/modules/shared/components/RecordList'
 import { createClient } from '@/lib/supabase/server'
 import { getCachedCourseOptions, listCourseCategories } from '@/modules/courses/service'
-import { AttendanceClientView } from '@/modules/attendance/components/AttendanceClientView'
+import {
+  AttendanceClientView,
+  type CourseSummaryRow,
+  type StudentSummaryRow,
+} from '@/modules/attendance/components/AttendanceClientView'
 import Link from 'next/link'
 
 function AttendanceStatusBadge({ status }: { status: string }) {
@@ -178,6 +182,37 @@ export default async function AttendancePage({ searchParams }: PageProps<'/atten
     </RecordList>
   )
 
+  // Views report every column as nullable; rows without a course or student are not reportable.
+  const courseRows: CourseSummaryRow[] = (courseReports ?? []).flatMap((row) =>
+    row.course_id
+      ? [
+          {
+            course_id: row.course_id,
+            course_name: row.course_name ?? '',
+            students: row.students ?? 0,
+            sessions: row.sessions ?? 0,
+            present_sessions: row.present_sessions ?? 0,
+            attendance_percent: row.attendance_percent ?? 0,
+          },
+        ]
+      : [],
+  )
+  const studentRows: StudentSummaryRow[] = (studentReports ?? []).flatMap((row) =>
+    row.course_id && row.register_id !== null
+      ? [
+          {
+            course_id: row.course_id,
+            course_name: row.course_name ?? '',
+            register_id: row.register_id,
+            student_name: row.student_name ?? '',
+            sessions: row.sessions ?? 0,
+            present_sessions: row.present_sessions ?? 0,
+            attendance_percent: row.attendance_percent ?? 0,
+          },
+        ]
+      : [],
+  )
+
   return (
     <AttendanceClientView
       courses={courses}
@@ -185,8 +220,8 @@ export default async function AttendancePage({ searchParams }: PageProps<'/atten
       selectedCourseId={courseId}
       selectedDate={date ?? new Date().toISOString().slice(0, 10)}
       roster={roster}
-      courseReports={courseReports ?? []}
-      studentReports={studentReports ?? []}
+      courseReports={courseRows}
+      studentReports={studentRows}
       courseCategoryMap={courseCategoryMap}
       recordsSection={recordsSection}
     />

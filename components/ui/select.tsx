@@ -193,8 +193,8 @@ export function SelectItem({ value, children, className = '', disabled = false }
     let label = ''
     if (typeof children === 'string' || typeof children === 'number') {
       label = String(children)
-    } else if (React.isValidElement(children)) {
-      const childProps = (children as any).props
+    } else if (React.isValidElement<{ children?: unknown }>(children)) {
+      const childProps = children.props
       if (childProps && typeof childProps.children === 'string') {
         label = childProps.children
       }

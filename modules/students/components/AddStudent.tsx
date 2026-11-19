@@ -5,6 +5,7 @@ import { money } from '@/lib/formatters'
 import { calculateGstForRupees, rupeesToPaise } from '@/lib/money'
 import { CategoryBadge } from '@/components/CategoryBadge'
 import { DEFAULT_SKILL_TAGS } from '@/modules/skills/types'
+import type { StudentFormValues } from '@/lib/validation'
 
 const DEFAULT_COURSE_OPTIONS = [
   'Professional Course',
@@ -39,7 +40,7 @@ export function AddStudent({
 }: {
   courses?: Course[]
   onClose: () => void
-  onSave: (s: any) => void
+  onSave: (student: StudentFormValues) => void
   gstRate?: number
   role?: Role
 }) {
@@ -74,9 +75,9 @@ export function AddStudent({
   useEffect(() => {
     fetch('/api/skills')
       .then((res) => (res.ok ? res.json() : null))
-      .then((json) => {
+      .then((json: { data?: Array<{ name?: unknown }> } | null) => {
         if (json?.data && Array.isArray(json.data) && json.data.length > 0) {
-          setAvailableSkills(json.data.map((s: any) => String(s.name)))
+          setAvailableSkills(json.data.map((s) => String(s.name)))
         }
       })
       .catch(() => {})

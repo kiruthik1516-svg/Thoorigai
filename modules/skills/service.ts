@@ -21,7 +21,7 @@ export async function listSkillTags(): Promise<SkillTag[]> {
       }))
     }
 
-    return data.map((row: any) => ({
+    return data.map((row) => ({
       id: String(row.id),
       name: String(row.name),
       sortOrder: Number(row.sort_order ?? 0),

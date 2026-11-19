@@ -33,9 +33,9 @@ export default async function AssessmentsPage({ searchParams }: PageProps<'/asse
     })(),
   ])
 
-  const categoryMap = new Map((categories ?? []).map((c: any) => [c.id, c.name]))
+  const categoryMap = new Map((categories ?? []).map((c) => [c.id, c.name]))
 
-  const courses = (rawCourses ?? []).map((row: any) => ({
+  const courses = (rawCourses ?? []).map((row) => ({
     id: String(row.id),
     name: String(row.name),
     categoryId: row.category_id ? String(row.category_id) : null,

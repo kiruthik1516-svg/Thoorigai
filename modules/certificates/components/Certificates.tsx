@@ -5,6 +5,21 @@ import type { CertificateRecord, Student } from '@/lib/types'
 import { Status } from '@/components/Status'
 import { CertificatePrintDynamic as CertificatePrint } from '@/modules/certificates/components/CertificatePrintDynamic'
 
+/** The student fields CertificatePrint reads when it renders an existing certificate record. */
+function studentFromCertificate(certificate: CertificateRecord): Student {
+  return {
+    id: certificate.studentRowId,
+    registerId: certificate.studentRegisterId,
+    name: certificate.studentName,
+    course: certificate.courseName,
+    batch: certificate.startDate ?? '',
+    total: 0,
+    paid: 0,
+    phone: '',
+    status: 'Fully Paid',
+  }
+}
+
 export function Certificates({
   students,
   certificates,
@@ -322,7 +337,7 @@ export function Certificates({
               <div className="certificate-preview-content">
                 {/* Use the CertificatePrint component for exact design match */}
                 <CertificatePrint
-                  student={previewStudent ?? (previewCertificate! as any)}
+                  student={previewStudent ?? studentFromCertificate(previewCertificate!)}
                   onBack={() => {
                     setShowPreview(false)
                     setPreviewStudent(null)

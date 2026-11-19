@@ -7,6 +7,7 @@ import { paiseToRupees, rupeesToPaise } from '@/lib/money'
 import { revalidateTag } from 'next/cache'
 import { randomUUID } from 'node:crypto'
 import { ConflictError, NotFoundError } from '@/lib/http/errors'
+import type { Tables } from '@/lib/supabase/database.types'
 
 const getCoursesQuerySchema = paginationQuerySchema.extend({
   categoryId: z.string().optional(),
@@ -24,7 +25,7 @@ function courseWriteError(error: { code?: string; message: string }): never {
   throw error
 }
 
-function courseResponse(data: Record<string, any>) {
+function courseResponse(data: Tables<'courses'> & { category: { name: string } | null }) {
   return {
     ...data,
     fee: paiseToRupees(Number(data.fee)),
@@ -55,7 +56,7 @@ export const GET = withApi(
       .range(pagination.offset, pagination.offset + pagination.limit - 1)
     if (error) throw error
 
-    const courses = (data ?? []).map((course: any) => ({
+    const courses = (data ?? []).map((course) => ({
       id: course.id,
       name: course.name,
       fee: paiseToRupees(Number(course.fee)),

@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { cn, generateUniqueVerificationCode, generateVerificationCode } from './utils'
+import type { SupabaseClient } from '@supabase/supabase-js'
+import type { Database } from '@/lib/supabase/database.types'
 
 describe('verification code generator', () => {
   it('produces the requested number of URL-safe characters', () => {
@@ -31,7 +33,9 @@ describe('utility helpers', () => {
         }),
       })),
     }
-    await expect(generateUniqueVerificationCode(client, 2)).rejects.toThrow('maximum attempts')
+    await expect(generateUniqueVerificationCode(client as unknown as SupabaseClient<Database>, 2)).rejects.toThrow(
+      'maximum attempts',
+    )
     client.from.mockImplementationOnce(
       () =>
         ({
@@ -40,7 +44,7 @@ describe('utility helpers', () => {
               then: (resolve: (value: unknown) => unknown) => Promise.resolve({ count: 1, error: null }).then(resolve),
             }),
           }),
-        }) as any,
+        }) as never,
     )
     client.from.mockImplementationOnce(
       () =>
@@ -50,13 +54,17 @@ describe('utility helpers', () => {
               then: (resolve: (value: unknown) => unknown) => Promise.resolve({ count: 0, error: null }).then(resolve),
             }),
           }),
-        }) as any,
+        }) as never,
     )
-    await expect(generateUniqueVerificationCode(client, 2)).resolves.toBe('A'.repeat(10))
+    await expect(generateUniqueVerificationCode(client as unknown as SupabaseClient<Database>, 2)).resolves.toBe(
+      'A'.repeat(10),
+    )
     const failedLookup = {
       from: () => ({ select: () => ({ eq: () => Promise.resolve({ error: new Error('offline') }) }) }),
     }
-    await expect(generateUniqueVerificationCode(failedLookup)).resolves.toBe('A'.repeat(10))
+    await expect(generateUniqueVerificationCode(failedLookup as unknown as SupabaseClient<Database>)).resolves.toBe(
+      'A'.repeat(10),
+    )
     vi.stubGlobal('crypto', originalCrypto)
   })
 })

@@ -28,6 +28,9 @@ export const studentSchema = z.object({
   knowledgeTags: z.array(z.string()).default([]),
 })
 
+/** What the enrolment form sends to POST /api/students (before schema defaults are applied). */
+export type StudentFormValues = z.input<typeof studentSchema>
+
 export const paymentSchema = z.object({
   studentId: z.number().int().positive({ message: 'Student ID must be a positive integer' }),
   amount: z.number().positive({ message: 'Amount must be a positive number' }),

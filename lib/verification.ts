@@ -56,6 +56,10 @@ export const verificationRegistry = {
 } as const
 
 // Helper function to get the selector for a doc type
-export const getVerificationSelector = (docType: string): VerificationResultSelector<any> | undefined => {
-  return verificationRegistry[docType as keyof typeof verificationRegistry]
+export const getVerificationSelector = (
+  docType: string,
+): (typeof verificationRegistry)[keyof typeof verificationRegistry] | undefined => {
+  return Object.hasOwn(verificationRegistry, docType)
+    ? verificationRegistry[docType as keyof typeof verificationRegistry]
+    : undefined
 }

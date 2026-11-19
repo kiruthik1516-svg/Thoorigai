@@ -1,4 +1,6 @@
 // Utility functions for the ThoorigAI Infotech Admin Dashboard
+import type { SupabaseClient } from '@supabase/supabase-js'
+import type { Database } from '@/lib/supabase/database.types'
 
 /**
  * Generate a URL-safe, short random string for verification codes
@@ -31,7 +33,10 @@ export function generateVerificationCode(size: number = 10): string {
  * @param maxAttempts Maximum number of attempts (default: 5)
  * @returns Promise resolving to a unique verification code
  */
-export async function generateUniqueVerificationCode(supabase: any, maxAttempts: number = 5): Promise<string> {
+export async function generateUniqueVerificationCode(
+  supabase: SupabaseClient<Database>,
+  maxAttempts: number = 5,
+): Promise<string> {
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     const code = generateVerificationCode(10)
 

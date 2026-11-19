@@ -252,9 +252,7 @@ export function StudentPrintDossier({
                   </div>
                   <div>
                     <span className="text-slate-500 block">Admission Source</span>
-                    <strong className="text-slate-900 block">
-                      {student.studentSource || (student as any).leadSource || 'Direct Walk-in'}
-                    </strong>
+                    <strong className="text-slate-900 block">{student.studentSource || 'Direct Walk-in'}</strong>
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-2">

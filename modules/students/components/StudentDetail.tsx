@@ -433,11 +433,8 @@ export function StudentDetail({
                   <span className="text-slate-500 block mb-1 font-medium flex items-center gap-1">
                     <Compass size={13} className="text-slate-500" /> Source
                   </span>
-                  <strong
-                    className="text-slate-900 block truncate"
-                    title={student.studentSource || (student as any).leadSource || 'Direct Walk-in'}
-                  >
-                    {student.studentSource || (student as any).leadSource || 'Direct Walk-in'}
+                  <strong className="text-slate-900 block truncate" title={student.studentSource || 'Direct Walk-in'}>
+                    {student.studentSource || 'Direct Walk-in'}
                   </strong>
                 </div>
               )}

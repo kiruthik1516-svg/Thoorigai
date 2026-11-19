@@ -31,7 +31,7 @@ import { Card } from '@/components/ui/Card'
 import { PillButton } from '@/components/ui/PillButton'
 import { Tag } from '@/components/ui/Tag'
 import { EmptyState } from '@/components/ui/EmptyState'
-import { apiErrorMessage } from '@/lib/api/error-message'
+import { apiErrorMessage, errorMessage } from '@/lib/api/error-message'
 
 type SkillCategory = 'all' | 'frontend' | 'backend' | 'ai_data' | 'cloud_devops' | 'levels' | 'general'
 
@@ -229,8 +229,8 @@ export function SkillTagsManager({
       setNewSkillName('')
       onSkillsChange?.(updated)
       showNotification(`Skill tag "${created.name}" created successfully.`)
-    } catch (err: any) {
-      showNotification(err.message || 'Failed to add skill tag', true)
+    } catch (err) {
+      showNotification(errorMessage(err, 'Failed to add skill tag'), true)
     } finally {
       setLoading(false)
     }
@@ -270,8 +270,8 @@ export function SkillTagsManager({
       setEditingName('')
       onSkillsChange?.(updated)
       showNotification(`Skill tag renamed to "${trimmed}".`)
-    } catch (err: any) {
-      showNotification(err.message || 'Failed to update skill tag', true)
+    } catch (err) {
+      showNotification(errorMessage(err, 'Failed to update skill tag'), true)
     } finally {
       setLoading(false)
     }
@@ -302,8 +302,8 @@ export function SkillTagsManager({
       showNotification(`Skill tag "${skillToDelete.name}" was removed.`)
       setDeleteConfirmOpen(false)
       setSkillToDelete(null)
-    } catch (err: any) {
-      showNotification(err.message || 'Failed to delete skill tag', true)
+    } catch (err) {
+      showNotification(errorMessage(err, 'Failed to delete skill tag'), true)
     } finally {
       setDeleting(false)
     }

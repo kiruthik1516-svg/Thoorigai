@@ -21,7 +21,7 @@ export default async function MaterialsPage() {
 
   if (error) throw error
 
-  const items = (courses ?? []).map((c: any) => ({
+  const items = (courses ?? []).map((c) => ({
     id: String(c.id),
     name: String(c.name),
     duration: String(c.duration),

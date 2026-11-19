@@ -31,9 +31,10 @@ import {
 } from 'lucide-react'
 import { format, parseISO } from 'date-fns'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
-import type { CourseCategory } from '@/lib/types'
+import type { CourseCategory, Student } from '@/lib/types'
 import { CategoryBadge } from '@/components/CategoryBadge'
 import { GoogleFormsImportModal } from './GoogleFormsImportModal'
+import type { StudentOption } from '../utils/google-form-parser'
 import { ClassroomQRModal } from './ClassroomQRModal'
 import { KpiCard } from '@/components/ui/KpiCard'
 import { apiErrorMessage } from '@/lib/api/error-message'
@@ -130,7 +131,7 @@ export function Assessments({
   const [assessmentResults, setAssessmentResults] = useState<AssessmentResult[]>([])
   const [courses, setCourses] = useState<Course[]>(initialCourses)
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState('')
-  const [students, setStudents] = useState<any[]>([])
+  const [students, setStudents] = useState<StudentOption[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [selectedAssessmentId, setSelectedAssessmentId] = useState<string | null>(null)
@@ -232,8 +233,15 @@ export function Assessments({
     try {
       const response = await fetch(`/api/students?course=${courseId}&page=1&pageSize=100`)
       if (!response.ok) throw new Error('Failed to fetch students')
-      const data = await response.json()
-      setStudents(data.data || [])
+      const data = (await response.json()) as { data?: Student[] }
+      // /api/students returns camelCase students; the grading table and Google Forms import key on register_id.
+      setStudents(
+        (data.data ?? []).map((student) => ({
+          id: student.id ?? String(student.registerId),
+          register_id: student.registerId,
+          name: student.name,
+        })),
+      )
     } catch {
       setStudents([])
     }

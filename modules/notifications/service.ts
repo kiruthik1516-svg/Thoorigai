@@ -49,9 +49,9 @@ export async function listUserNotifications(userId: string, role: string): Promi
   // 2. Fetch read markers for this user
   const { data: reads } = await supabase.from('notification_reads').select('notification_id').eq('user_id', userId)
 
-  const readSet = new Set((reads ?? []).map((r: any) => String(r.notification_id)))
+  const readSet = new Set((reads ?? []).map((r) => String(r.notification_id)))
 
-  return notifs.map((n: any) => ({
+  return notifs.map((n) => ({
     id: String(n.id),
     title: String(n.title),
     message: String(n.message),
@@ -87,7 +87,7 @@ export async function markAllNotificationsRead(userId: string, role: string): Pr
 
   if (!notifs || notifs.length === 0) return
 
-  const rows = notifs.map((n: any) => ({
+  const rows = notifs.map((n) => ({
     user_id: userId,
     notification_id: n.id,
     read_at: new Date().toISOString(),

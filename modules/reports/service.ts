@@ -95,7 +95,7 @@ export async function getStaffAcademicReportData(): Promise<AcademicReportData> 
     resultsByAssessment.set(aId, list)
   }
 
-  const assessmentRecords: AssessmentReportItem[] = (assessmentRows ?? []).map((row: any) => {
+  const assessmentRecords: AssessmentReportItem[] = (assessmentRows ?? []).map((row) => {
     const course = normalizeJoined(row.courses)
     const scores = resultsByAssessment.get(String(row.id)) || []
     const resultsCount = scores.length
@@ -118,7 +118,7 @@ export async function getStaffAcademicReportData(): Promise<AcademicReportData> 
     }
   })
 
-  const attendanceRecords: AttendanceReportItem[] = (attendanceRows ?? []).map((row: any) => {
+  const attendanceRecords: AttendanceReportItem[] = (attendanceRows ?? []).map((row) => {
     const student = normalizeJoined(row.students)
     const course = normalizeJoined(row.courses)
     return {

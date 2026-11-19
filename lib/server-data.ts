@@ -41,6 +41,14 @@ export function likePattern(value: string): string {
   return `%${value.replace(/[\\%_]/g, (match) => `\\${match}`)}%`
 }
 
+/** Course name from an embedded `students(course)` join, which PostgREST returns as an object or a one-item array. */
+function joinedStudentCourse(students: unknown): string | undefined {
+  const joined = Array.isArray(students) ? students[0] : students
+  if (!joined || typeof joined !== 'object') return undefined
+  const course = (joined as { course?: unknown }).course
+  return course ? String(course) : undefined
+}
+
 export function paymentFromRow(row: Record<string, unknown>): Payment {
   const amount = paiseToRupees(Number(row.amount ?? 0))
   const cgst = paiseToRupees(Number(row.cgst ?? 0))
@@ -69,7 +77,7 @@ export function paymentFromRow(row: Record<string, unknown>): Payment {
     amount,
     invoice: String(row.invoice ?? ''),
     studentId: Number(row.student_register_id ?? row.student_id),
-    course: (row.students as any)?.course ? String((row.students as any).course) : undefined,
+    course: joinedStudentCourse(row.students),
     verification_code: row.verification_code ? String(row.verification_code) : undefined,
     paymentType: row.payment_type ? String(row.payment_type) : undefined,
     instanceNumber:
@@ -146,7 +154,7 @@ export async function listStudents(
       .select('name')
       .eq('category_id', options.categoryId.trim())
     if (catError) throw catError
-    const names = (coursesInCategory ?? []).map((c: any) => c.name)
+    const names = (coursesInCategory ?? []).map((c) => c.name)
     if (names.length > 0) {
       query = query.in('course', names)
     } else {
@@ -339,7 +347,7 @@ export async function listCertificates(
       .from('courses')
       .select('name')
       .eq('category_id', options.categoryId.trim())
-    const names = (coursesInCategory ?? []).map((c: any) => c.name)
+    const names = (coursesInCategory ?? []).map((c) => c.name)
     if (names.length > 0) {
       query = query.in('course_name', names)
     } else {

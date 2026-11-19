@@ -71,9 +71,14 @@ export default [
     rules: {
       'no-restricted-imports': ['error', mockDataRestriction],
       'no-restricted-syntax': ['error', ...baseSyntaxRestrictions],
-      // F-30: surfaced as warnings first; F-42/F-43 burn the existing ones down.
-      '@typescript-eslint/no-explicit-any': 'warn',
+      // F-42: application code is fully typed (Supabase clients use the generated Database types).
+      '@typescript-eslint/no-explicit-any': 'error',
     },
+  },
+  {
+    // Unit tests mock Supabase's chainable query builders; typing every mock chain adds noise, not safety.
+    files: ['**/*.test.{ts,tsx}', 'tests/**/*.{ts,tsx}'],
+    rules: { '@typescript-eslint/no-explicit-any': 'off' },
   },
   {
     files: ['**/*.tsx'],

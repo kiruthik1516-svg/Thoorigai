@@ -24,6 +24,7 @@ import type { Course, CourseCategory } from '@/lib/types'
 import { money } from '@/lib/formatters'
 import { calculateGstForRupees } from '@/lib/money'
 import { CategoryBadge, getCategoryBadgeStyle } from '@/components/CategoryBadge'
+import { errorMessage } from '@/lib/api/error-message'
 
 export function CoursesManager({
   courses,
@@ -157,8 +158,8 @@ export function CoursesManager({
         categoryId: categoryId && categoryId !== 'none' ? categoryId : null,
       })
       closeModal()
-    } catch (err: any) {
-      setFormError(err.message || 'Failed to save course.')
+    } catch (err) {
+      setFormError(errorMessage(err, 'Failed to save course.'))
     } finally {
       setSubmitting(false)
     }
@@ -195,8 +196,8 @@ export function CoursesManager({
       await onDeleteCourse(deleteConfirmCourse.id)
       closeSecurityDeleteModal()
       closeModal()
-    } catch (err: any) {
-      setDeleteError(err.message || 'Failed to delete course. Please check if active dependencies prevent removal.')
+    } catch (err) {
+      setDeleteError(errorMessage(err, 'Failed to delete course. Please check if active dependencies prevent removal.'))
     } finally {
       setDeleting(false)
     }

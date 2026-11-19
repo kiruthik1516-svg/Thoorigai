@@ -8,6 +8,7 @@ import { calculateGstForRupees } from '@/lib/money'
 import { Card } from '@/components/ui/Card'
 import { PillButton } from '@/components/ui/PillButton'
 import { Tag } from '@/components/ui/Tag'
+import { errorMessage } from '@/lib/api/error-message'
 
 export function GstSettingsPage({
   settings,
@@ -55,8 +56,8 @@ export function GstSettingsPage({
       await onSave({ rate: r, gstin: gstin.trim() || null, enabled })
       setSuccess('GST settings saved successfully.')
       setTimeout(() => setSuccess(''), 3000)
-    } catch (err: any) {
-      setError(err.message || 'Failed to save settings.')
+    } catch (err) {
+      setError(errorMessage(err, 'Failed to save settings.'))
     } finally {
       setSaving(false)
     }

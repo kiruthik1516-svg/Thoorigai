@@ -509,12 +509,10 @@ export function StudentsView({
                                 {balance === 0 ? 'Fully Paid' : money(balance)}
                               </strong>
                             </div>
-                            {(s.studentSource || (s as any).leadSource) && (
+                            {s.studentSource && (
                               <div className="flex justify-between items-center text-[11px] text-slate-500 pt-1 border-t border-slate-200/60">
                                 <span>Source:</span>
-                                <span className="font-medium text-slate-700">
-                                  {s.studentSource || (s as any).leadSource}
-                                </span>
+                                <span className="font-medium text-slate-700">{s.studentSource}</span>
                               </div>
                             )}
                           </div>

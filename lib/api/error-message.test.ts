@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { apiErrorMessage } from './error-message'
+import { apiErrorMessage, errorMessage } from './error-message'
 
 describe('apiErrorMessage (F-22)', () => {
   it('reads every error shape the API returns', () => {
@@ -15,5 +15,14 @@ describe('apiErrorMessage (F-22)', () => {
     expect(apiErrorMessage({ error: { code: 'X' } }, 'Failed.')).toBe('Failed.')
     expect(apiErrorMessage(null, 'Failed.')).toBe('Failed.')
     expect(apiErrorMessage('oops', 'Failed.')).toBe('Failed.')
+  })
+})
+
+describe('errorMessage', () => {
+  it('uses the message of an Error and falls back otherwise', () => {
+    expect(errorMessage(new Error('Course name already exists'), 'Failed')).toBe('Course name already exists')
+    expect(errorMessage(new Error('  '), 'Failed')).toBe('Failed')
+    expect(errorMessage('boom', 'Failed')).toBe('Failed')
+    expect(errorMessage(null, 'Failed')).toBe('Failed')
   })
 })

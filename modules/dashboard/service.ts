@@ -163,7 +163,7 @@ export async function getStaffDashboardData(): Promise<StaffDashboardData> {
   const todayTotal = todayPresent + todayAbsent
   const todayRate = todayTotal > 0 ? Math.round((todayPresent / todayTotal) * 100) : 0
 
-  const mappedAssessments = (assessments ?? []).map((a: any) => ({
+  const mappedAssessments = (assessments ?? []).map((a) => ({
     id: String(a.id),
     title: String(a.title),
     courseId: String(a.course_id),
@@ -178,15 +178,15 @@ export async function getStaffDashboardData(): Promise<StaffDashboardData> {
     { id: 'c0000000-0000-0000-0000-000000000003', name: 'Internship', duration: '3 Months' },
   ]
 
-  const catList = ((categoriesData && categoriesData.length > 0 ? categoriesData : fallbackCategories) as any[]).map(
-    (c) => ({
-      id: String(c.id),
-      name: String(c.name),
-      duration: String(c.duration),
-    }),
-  )
+  const categoryRows: Array<{ id: string; name: string; duration: string | null }> =
+    categoriesData && categoriesData.length > 0 ? categoriesData : fallbackCategories
+  const catList = categoryRows.map((c) => ({
+    id: String(c.id),
+    name: String(c.name),
+    duration: String(c.duration),
+  }))
 
-  const courseList = ((coursesData ?? []) as any[]).map((c) => ({
+  const courseList = (coursesData ?? []).map((c) => ({
     id: String(c.id),
     name: String(c.name),
     duration: String(c.duration || ''),

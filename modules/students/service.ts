@@ -176,12 +176,12 @@ export async function getStudentAcademicHistory(registerId: number) {
   ])
 
   return {
-    attendance: (attendanceRes.data ?? []).map((a: any) => ({
+    attendance: (attendanceRes.data ?? []).map((a) => ({
       id: String(a.id),
       sessionDate: String(a.session_date),
       status: (a.status === 'Excused' ? 'Exempt' : a.status) as 'Present' | 'Absent' | 'Exempt' | 'Late' | 'Excused',
     })),
-    assessments: (assessmentRes.data ?? []).map((r: any) => {
+    assessments: (assessmentRes.data ?? []).map((r) => {
       const assessment = normalizeJoined(r.assessments)
       return {
         id: String(r.id),
@@ -206,7 +206,7 @@ export async function listStudentsForPayment() {
     .limit(500)
 
   if (error) throw error
-  return (data ?? []).map((row: any) => ({
+  return (data ?? []).map((row) => ({
     id: String(row.id),
     registerId: Number(row.register_id),
     name: String(row.name),

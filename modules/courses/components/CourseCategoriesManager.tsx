@@ -22,7 +22,7 @@ import { Card } from '@/components/ui/Card'
 import { PillButton } from '@/components/ui/PillButton'
 import { Tag } from '@/components/ui/Tag'
 import { EmptyState } from '@/components/ui/EmptyState'
-import { apiErrorMessage } from '@/lib/api/error-message'
+import { apiErrorMessage, errorMessage } from '@/lib/api/error-message'
 
 const PRESET_DURATIONS = ['4 weeks', '6 weeks', '8 weeks', '12 weeks', '16 weeks', '1.5 Months', '3 Months', '6 Months']
 
@@ -119,8 +119,8 @@ export function CourseCategoriesManager({
       }
       closeModal()
       router.refresh()
-    } catch (err: any) {
-      setFormError(err.message || 'Operation failed.')
+    } catch (err) {
+      setFormError(errorMessage(err, 'Operation failed.'))
     } finally {
       setSubmitting(false)
     }
@@ -141,8 +141,8 @@ export function CourseCategoriesManager({
       setConfirmOpen(false)
       setCategoryToDelete(null)
       router.refresh()
-    } catch (err: any) {
-      alert(err.message || 'Failed to delete category.')
+    } catch (err) {
+      alert(errorMessage(err, 'Failed to delete category.'))
     } finally {
       setDeleting(false)
     }

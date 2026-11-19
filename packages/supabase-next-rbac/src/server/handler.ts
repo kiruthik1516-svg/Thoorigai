@@ -103,13 +103,14 @@ export function createApiHandlerFactory<
         }
 
         // 3. Request parsing & validation
-        let query: any = undefined
+        type Context = Parameters<typeof handler>[0]
+        let query: unknown = undefined
         if (options.query) {
           const searchParams = Object.fromEntries(new URL(request.url).searchParams.entries())
           query = options.query.parse(searchParams)
         }
 
-        let body: any = undefined
+        let body: unknown = undefined
         if (options.body) {
           try {
             const rawBody = await request.json()
@@ -122,7 +123,7 @@ export function createApiHandlerFactory<
           }
         }
 
-        let params: any = undefined
+        let params: unknown = undefined
         if (options.params) {
           const rawParams = routeContext?.params ? await routeContext.params : {}
           params = options.params.parse(rawParams)
@@ -132,9 +133,10 @@ export function createApiHandlerFactory<
         const result = await handler({
           request,
           requestId,
-          query,
-          body,
-          params,
+          // Each value was produced by the matching schema's parse(), so it has the inferred type.
+          query: query as Context['query'],
+          body: body as Context['body'],
+          params: params as Context['params'],
           user,
           profile,
           role,

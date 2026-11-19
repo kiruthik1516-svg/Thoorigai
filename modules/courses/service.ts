@@ -7,6 +7,7 @@ import { getCurrentProfile } from '@/lib/auth/current-profile'
 import { can } from '@/lib/auth/permissions'
 import { ForbiddenError } from '@/lib/http/errors'
 import type { Course, CourseCategory } from '@/lib/types'
+import type { TablesUpdate } from '@/lib/supabase/database.types'
 
 const readCachedCourseOptions = unstable_cache(
   async () => {
@@ -17,7 +18,7 @@ const readCachedCourseOptions = unstable_cache(
       .order('name')
       .limit(200)
     if (error) throw error
-    return (data ?? []).map((course: any) => ({
+    return (data ?? []).map((course) => ({
       id: String(course.id),
       name: String(course.name),
       fee: paiseToRupees(Number(course.fee)),
@@ -39,7 +40,7 @@ export async function listCourseCategories(): Promise<CourseCategory[]> {
     .select('id, name, duration, created_at, updated_at, courses(count)')
     .order('name')
   if (error) throw error
-  return (data ?? []).map((cat: any) => ({
+  return (data ?? []).map((cat) => ({
     id: String(cat.id),
     name: String(cat.name),
     duration: String(cat.duration),
@@ -82,7 +83,7 @@ export async function updateCourseCategory(
   if (!can(profile.role, 'courses', 'manage')) throw new ForbiddenError('Only admins can update categories.')
 
   const supabase = await createClient()
-  const updates: Record<string, string> = { updated_at: new Date().toISOString() }
+  const updates: TablesUpdate<'course_categories'> = { updated_at: new Date().toISOString() }
   if (input.name !== undefined) updates.name = input.name.trim()
   if (input.duration !== undefined) updates.duration = input.duration.trim()
 
@@ -145,7 +146,7 @@ export async function listCoursePage(options: {
   if (error) throw error
 
   return {
-    data: (data ?? []).map((row: any) => ({
+    data: (data ?? []).map((row) => ({
       id: String(row.id),
       name: String(row.name),
       fee: paiseToRupees(Number(row.fee)),
@@ -176,7 +177,7 @@ export async function getCourse(courseId: string): Promise<Course | null> {
         description: data.description ?? undefined,
         gstInclusive: Boolean(data.gst_inclusive),
         categoryId: data.category_id ? String(data.category_id) : undefined,
-        categoryName: (data.category as any)?.name ? String((data.category as any).name) : undefined,
+        categoryName: data.category?.name ? String(data.category.name) : undefined,
       }
     : null
 }
@@ -189,7 +190,7 @@ export async function listCourseOptions(): Promise<Course[]> {
     .order('name')
     .limit(200)
   if (error) throw error
-  return (data ?? []).map((course: any) => ({
+  return (data ?? []).map((course) => ({
     id: String(course.id),
     name: String(course.name),
     fee: paiseToRupees(Number(course.fee)),

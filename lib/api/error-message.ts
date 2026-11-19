@@ -21,3 +21,8 @@ export function apiErrorMessage(body: unknown, fallback: string): string {
   if (typeof record.message === 'string' && record.message.trim()) return record.message
   return fallback
 }
+
+/** Message from a caught exception (always `unknown` in TypeScript), or the fallback. */
+export function errorMessage(error: unknown, fallback: string): string {
+  return error instanceof Error && error.message.trim() ? error.message : fallback
+}

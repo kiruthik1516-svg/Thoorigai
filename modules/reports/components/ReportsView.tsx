@@ -340,7 +340,7 @@ function PaymentClearanceChart({
                     <div className="flex w-full items-center justify-between gap-3 text-xs">
                       <span className="text-[var(--mute)]">Students:</span>
                       <span className="font-bold text-[var(--ink)] font-mono">
-                        {item.payload.count} ({item.payload.pct}%)
+                        {String(item.payload?.count ?? '')} ({String(item.payload?.pct ?? '')}%)
                       </span>
                     </div>
                   )}
@@ -852,8 +852,10 @@ function PaymentMethodTotalsChart({ paymentChartData, paymentChartConfig, revenu
                           className="h-2.5 w-2.5 rounded-full shrink-0"
                           style={{ background: item.payload?.fill || 'var(--g1)' }}
                         />
-                        <span className="font-semibold text-[var(--ink)]">{item.payload?.method || name}</span>
-                        <span className="text-[10px] text-[var(--mute)]">({item.payload?.count ?? 1} tx)</span>
+                        <span className="font-semibold text-[var(--ink)]">
+                          {String(item.payload?.method || name || '')}
+                        </span>
+                        <span className="text-[10px] text-[var(--mute)]">({String(item.payload?.count ?? 1)} tx)</span>
                       </div>
                       <span className="font-bold text-[var(--ink)] font-mono">{money(Number(value))}</span>
                     </div>
@@ -1517,7 +1519,7 @@ export function ReportsView({
                           <div className="flex w-full items-center justify-between gap-3 text-xs">
                             <span className="text-[var(--mute)]">Students:</span>
                             <span className="font-bold text-[var(--ink)] font-mono">
-                              {value} ({item.payload.sharePct}%)
+                              {String(value ?? '')} ({String(item.payload?.sharePct ?? '')}%)
                             </span>
                           </div>
                         )}
@@ -1593,7 +1595,7 @@ export function ReportsView({
                         )}
                         labelFormatter={(_, payload) => (
                           <span className="font-semibold text-xs text-[var(--ink)]">
-                            {payload?.[0]?.payload?.fullDate || ''}
+                            {String(payload?.[0]?.payload?.fullDate ?? '')}
                           </span>
                         )}
                       />

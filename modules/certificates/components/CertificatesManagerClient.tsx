@@ -30,7 +30,7 @@ import { Card } from '@/components/ui/Card'
 import { EmptyState } from '@/components/ui/EmptyState'
 
 interface CertificatesManagerClientProps {
-  certificates: (CertificateRowItem & { [key: string]: any })[]
+  certificates: CertificateRowItem[]
   totalCount: number
   page: number
   pageSize: number

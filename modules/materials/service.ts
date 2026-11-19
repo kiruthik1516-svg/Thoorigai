@@ -37,9 +37,10 @@ export async function listCourseMaterials(
         .from('course-materials')
         .createSignedUrl(material.storage_path, 3600)
       if (urlError) {
+        const details = urlError as { statusCode?: unknown; code?: unknown }
         const isNotFound =
-          (urlError as any).statusCode === '404' ||
-          (urlError as any).code === 'NoSuchKey' ||
+          details.statusCode === '404' ||
+          details.code === 'NoSuchKey' ||
           urlError.message?.toLowerCase().includes('not found')
         if (isNotFound) {
           signedUrl = null

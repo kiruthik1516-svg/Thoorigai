@@ -35,7 +35,7 @@ export async function listAssessmentPage(options: {
     if (!error && data) {
       return {
         totalCount: count ?? data.length,
-        data: data.map((row: any) => {
+        data: data.map((row) => {
           const course = normalizeJoined(row.courses)
           const profile = normalizeJoined(row.profiles)
           return {
@@ -82,21 +82,21 @@ export async function listAssessmentPage(options: {
       return { totalCount: 0, data: [] }
     }
 
-    const courseIds = Array.from(new Set(data.map((r: any) => r.course_id).filter(Boolean)))
-    const userIds = Array.from(new Set(data.map((r: any) => r.created_by).filter(Boolean)))
+    const courseIds = Array.from(new Set(data.map((r) => r.course_id).filter((id): id is string => Boolean(id))))
+    const userIds = Array.from(new Set(data.map((r) => r.created_by).filter((id): id is string => Boolean(id))))
 
     let courseMap = new Map<string, string>()
     let profileMap = new Map<string, { id: string; fullName: string; role: string }>()
 
     if (courseIds.length > 0) {
       const { data: cData } = await supabase.from('courses').select('id, name').in('id', courseIds)
-      if (cData) courseMap = new Map(cData.map((c: any) => [c.id, c.name]))
+      if (cData) courseMap = new Map(cData.map((c) => [c.id, c.name]))
     }
     if (userIds.length > 0) {
       const { data: pData } = await supabase.from('profiles').select('id, full_name, role').in('id', userIds)
       if (pData) {
         profileMap = new Map(
-          pData.map((p: any) => [
+          pData.map((p) => [
             p.id,
             { id: String(p.id), fullName: String(p.full_name || ''), role: String(p.role || 'staff') },
           ]),
@@ -106,7 +106,7 @@ export async function listAssessmentPage(options: {
 
     return {
       totalCount: count ?? data.length,
-      data: data.map((row: any) => ({
+      data: data.map((row) => ({
         id: String(row.id),
         courseId: String(row.course_id),
         courseName: courseMap.get(String(row.course_id)) ?? '',
