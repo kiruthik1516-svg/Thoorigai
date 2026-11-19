@@ -5,6 +5,8 @@ import withBundleAnalyzer from '@next/bundle-analyzer'
 const { withSentryConfig } = sentryConfig
 
 const nextConfig = {
+  // F-31: do not advertise the framework.
+  poweredByHeader: false,
   images: {
     formats: ['image/avif', 'image/webp'],
   },

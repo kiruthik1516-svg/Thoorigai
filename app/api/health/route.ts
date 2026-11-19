@@ -8,7 +8,7 @@ export const GET = withApi({ public: true }, async () =>
     ok: true,
     service: `${brand.shortName.toLowerCase()}-admin-dashboard`,
     version: packageJson.version,
-    commit: process.env.VERCEL_GIT_COMMIT_SHA ?? process.env.GITHUB_SHA ?? 'unknown',
+    // F-31: the commit SHA is no longer public; deployments are identified in Vercel.
     timestamp: new Date().toISOString(),
   }),
 )

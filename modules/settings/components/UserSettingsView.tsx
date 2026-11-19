@@ -24,6 +24,7 @@ import type { Role, UserContactDetails, UserMetadata } from '@/lib/types'
 import { Card } from '@/components/ui/Card'
 import { PillButton } from '@/components/ui/PillButton'
 import { Tag } from '@/components/ui/Tag'
+import { apiErrorMessage } from '@/lib/api/error-message'
 
 type UserSettingsViewProps = {
   initialProfile: {
@@ -165,7 +166,7 @@ export function UserSettingsView({ initialProfile }: UserSettingsViewProps) {
 
       const data = await res.json().catch(() => null)
       if (!res.ok) {
-        throw new Error(data?.error || data?.message || 'Failed to save user settings.')
+        throw new Error(apiErrorMessage(data, 'Failed to save user settings.'))
       }
 
       setSuccessMsg('Your user settings, contact details, and metadata have been successfully updated!')

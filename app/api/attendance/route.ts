@@ -1,41 +1,39 @@
 import { NextResponse } from 'next/server'
-import type { NextRequest } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import type { SupabaseClient, User } from '@supabase/supabase-js'
 import { attendanceSchema } from '@/lib/validation'
 import { unexpectedApiError } from '@/lib/api-response'
 import { normalizeJoined } from '@/lib/supabase/relations'
 import z from 'zod'
 import { decodeCursor, encodeCursor, pagePaginationFromSearchParams } from '@/lib/pagination'
-import { validateMutationRequest } from '@/lib/security/csrf'
 import { withApi } from '@/lib/http/handler'
 import { rolesFor } from '@/lib/auth/permissions'
+import { sameCourse } from '@/lib/courses/match'
 
-async function getAttendance(req: NextRequest) {
-  // Cookie-bound client: RLS applies to every query in this handler.
-  const supabase = await createClient()
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser()
-  const session = user ? { user } : null
-  if (authError || !session) {
-    return new NextResponse(JSON.stringify({ error: 'Unauthorized' }), { status: 401 })
-  }
-  const { data: currentProfile } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', session.user.id)
-    .maybeSingle()
-  if (!currentProfile) return NextResponse.json({ error: 'Access denied.' }, { status: 403 })
+// F-21: studentId is either a register number (what the UI shows) or the student row UUID.
+const studentFilterSchema = z.union([z.string().regex(/^\d{1,9}$/), z.guid()])
 
+// F-29: authentication, the role check and the RLS-bound client come from withApi.
+async function getAttendance(request: Request, supabase: SupabaseClient) {
   try {
-    const { searchParams } = new URL(req.url)
+    const { searchParams } = new URL(request.url)
     const studentId = searchParams.get('studentId')
     const courseId = searchParams.get('courseId')
     const startDate = searchParams.get('startDate')
     const endDate = searchParams.get('endDate')
     const pagination = pagePaginationFromSearchParams(searchParams)
     const keyset = searchParams.has('cursor') || !searchParams.has('page')
+
+    const studentFilter = studentId ? studentFilterSchema.safeParse(studentId) : null
+    if (studentFilter && !studentFilter.success) {
+      return NextResponse.json(
+        { error: { message: 'studentId must be a register number or student id.' } },
+        { status: 400 },
+      )
+    }
+    const byRegisterId = Boolean(studentFilter?.success && /^\d+$/.test(studentFilter.data))
+    const studentJoin = byRegisterId
+      ? 'students!attendance_student_id_fkey!inner (register_id, name)'
+      : 'students!attendance_student_id_fkey (register_id, name)'
 
     let query = supabase.from('attendance').select(
       `
@@ -46,26 +44,21 @@ async function getAttendance(req: NextRequest) {
         status,
         marked_by,
         created_at,
-        students!attendance_student_id_fkey (register_id, name),
+        ${studentJoin},
         courses!attendance_course_id_fkey (id, name),
         profiles!attendance_marked_by_fkey (id, full_name, role)
       `,
       keyset ? undefined : { count: 'exact' },
     )
 
-    // Apply filters
-    if (studentId) {
-      query = query.eq('student_id', parseInt(studentId, 10))
+    if (studentFilter?.success) {
+      query = byRegisterId
+        ? query.eq('students.register_id', Number(studentFilter.data))
+        : query.eq('student_id', studentFilter.data)
     }
-    if (courseId) {
-      query = query.eq('course_id', courseId)
-    }
-    if (startDate) {
-      query = query.gte('session_date', startDate)
-    }
-    if (endDate) {
-      query = query.lte('session_date', endDate)
-    }
+    if (courseId) query = query.eq('course_id', courseId)
+    if (startDate) query = query.gte('session_date', startDate)
+    if (endDate) query = query.lte('session_date', endDate)
 
     const cursorToken = searchParams.get('cursor')
     if (keyset && cursorToken) {
@@ -93,7 +86,6 @@ async function getAttendance(req: NextRequest) {
     const last = data?.at(-1)
     const nextCursor = hasMore && last ? encodeCursor({ date: String(last.session_date), id: String(last.id) }) : null
 
-    // Format the response for easier consumption
     const formattedData = (data || []).map((record) => {
       const student = normalizeJoined(record.students)
       const course = normalizeJoined(record.courses)
@@ -106,13 +98,7 @@ async function getAttendance(req: NextRequest) {
         courseName: course?.name,
         sessionDate: record.session_date,
         status: record.status === 'Excused' ? 'Exempt' : record.status,
-        markedBy: profile
-          ? {
-              id: profile.id,
-              fullName: profile.full_name,
-              role: profile.role,
-            }
-          : null,
+        markedBy: profile ? { id: profile.id, fullName: profile.full_name, role: profile.role } : null,
         createdAt: record.created_at,
       }
     })
@@ -131,132 +117,78 @@ async function getAttendance(req: NextRequest) {
   }
 }
 
-async function postAttendance(req: NextRequest) {
-  const rejected = validateMutationRequest(req)
-  if (rejected) return rejected
-  // Cookie-bound client: RLS applies to every query in this handler.
-  const supabase = await createClient()
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser()
-  const session = user ? { user } : null
-  if (authError || !session) {
-    return new NextResponse(JSON.stringify({ error: 'Unauthorized' }), { status: 401 })
-  }
-
-  // Get the current user's profile to get their ID and role
-  const { data: profile, error: profileError } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('id', session.user.id)
-    .single()
-  if (profileError || !profile) {
-    return unexpectedApiError(
-      profileError ?? new Error('User profile was not found.'),
-      'Unable to fetch attendance creator profile',
-    )
-  }
-
+async function postAttendance(
+  body: z.infer<typeof attendanceSchema>,
+  supabase: SupabaseClient,
+  user: User,
+  role: string | undefined,
+) {
   try {
-    const body = await req.json()
-    // Validate the request body with zod schema
-    const parsedBody = attendanceSchema.parse(body)
+    const { studentId, courseId, sessionDate, status } = body
 
-    const { studentId, courseId, sessionDate, status } = parsedBody
-
-    // Business logic validations
-    // 1. Check if student exists
     const { data: studentData, error: studentError } = await supabase
       .from('students')
       .select('id, register_id, name, course')
       .eq('register_id', studentId)
-      .single()
-
-    if (studentError?.code === 'PGRST116' || (!studentError && !studentData)) {
-      return NextResponse.json({ error: 'Student not found' }, { status: 404 })
-    }
+      .maybeSingle()
     if (studentError) return unexpectedApiError(studentError, 'Unable to load attendance student')
+    if (!studentData) return NextResponse.json({ error: { message: 'Student not found' } }, { status: 404 })
 
-    // 2. Check if course exists
     const { data: courseData, error: courseError } = await supabase
       .from('courses')
       .select('id, name')
       .eq('id', courseId)
-      .single()
-
-    if (courseError?.code === 'PGRST116' || (!courseError && !courseData)) {
-      return NextResponse.json({ error: 'Course not found' }, { status: 404 })
-    }
+      .maybeSingle()
     if (courseError) return unexpectedApiError(courseError, 'Unable to load attendance course')
-    if (studentData.course !== courseData.name) {
-      return NextResponse.json({ error: 'Student is not enrolled in this course.' }, { status: 400 })
-    }
-
-    // 3. Check if user has permission to mark attendance for this course
-    // For now, allow staff, admin, and all trainers (as noted in migration)
-    // TODO: Update this once course-assignment concept exists
-    const hasPermission = profile.role === 'admin' || profile.role === 'staff'
-
-    if (!hasPermission) {
-      return NextResponse.json({ error: 'Insufficient permissions to mark attendance' }, { status: 403 })
-    }
-
-    // Upsert attendance record (insert or update on conflict)
-    const attendanceData = {
-      student_id: studentData.id,
-      course_id: courseId,
-      session_date: sessionDate,
-      status,
-      marked_by: session.user.id,
+    if (!courseData) return NextResponse.json({ error: { message: 'Course not found' } }, { status: 404 })
+    if (!sameCourse(studentData.course, courseData)) {
+      return NextResponse.json({ error: { message: 'Student is not enrolled in this course.' } }, { status: 400 })
     }
 
     const { data: attendanceRecord, error: attendanceError } = await supabase
       .from('attendance')
-      .upsert(attendanceData, {
-        onConflict: 'student_id,course_id,session_date',
-        ignoreDuplicates: false,
-      })
+      .upsert(
+        {
+          student_id: studentData.id,
+          course_id: courseId,
+          session_date: sessionDate,
+          status,
+          marked_by: user.id,
+        },
+        { onConflict: 'student_id,course_id,session_date', ignoreDuplicates: false },
+      )
       .select()
       .single()
-
     if (attendanceError) throw attendanceError
 
-    // Format response
-    const formattedRecord = {
-      id: attendanceRecord.id,
-      studentId: studentData.register_id,
-      studentName: studentData.name,
-      courseId: courseData.id,
-      courseName: courseData.name,
-      sessionDate: attendanceRecord.session_date,
-      status: attendanceRecord.status,
-      markedBy: {
-        id: attendanceRecord.marked_by,
-        fullName: profile.full_name,
-        role: profile.role,
-      },
-      createdAt: attendanceRecord.created_at,
-    }
+    const { data: marker } = await supabase.from('profiles').select('full_name').eq('id', user.id).maybeSingle()
 
     return NextResponse.json(
       {
-        data: formattedRecord,
+        data: {
+          id: attendanceRecord.id,
+          studentId: studentData.register_id,
+          studentName: studentData.name,
+          courseId: courseData.id,
+          courseName: courseData.name,
+          sessionDate: attendanceRecord.session_date,
+          status: attendanceRecord.status,
+          markedBy: { id: attendanceRecord.marked_by, fullName: marker?.full_name ?? null, role },
+          createdAt: attendanceRecord.created_at,
+        },
         message: 'Attendance marked successfully',
       },
       { status: 200 },
     )
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: error.issues }, { status: 400 })
-    }
     return unexpectedApiError(error, 'Unable to mark attendance')
   }
 }
 
-export const GET = withApi({ roles: rolesFor('attendance', 'read') }, async ({ request }) =>
-  getAttendance(request as NextRequest),
+export const GET = withApi({ roles: rolesFor('attendance', 'read') }, async ({ request, supabase }) =>
+  getAttendance(request, supabase!),
 )
-export const POST = withApi({ roles: rolesFor('attendance', 'create') }, async ({ request }) =>
-  postAttendance(request as NextRequest),
+export const POST = withApi(
+  { roles: rolesFor('attendance', 'create'), body: attendanceSchema },
+  async ({ body, supabase, user, role }) => postAttendance(body, supabase!, user!, role),
 )

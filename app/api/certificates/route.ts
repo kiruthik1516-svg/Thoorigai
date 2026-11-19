@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server'
-import type { NextRequest } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import type { SupabaseClient } from '@supabase/supabase-js'
 import { listCertificates } from '@/lib/server-data'
 import { certificateSchema } from '@/lib/validation'
 import { generateUniqueVerificationCode } from '@/lib/utils'
@@ -8,32 +7,13 @@ import type { CertificateRecord } from '@/lib/types'
 import z from 'zod'
 import { unexpectedApiError } from '@/lib/api-response'
 import { pagePaginationFromSearchParams } from '@/lib/pagination'
-import { validateMutationRequest } from '@/lib/security/csrf'
-import { rateLimit } from '@/lib/security/rate-limit'
 import { withApi } from '@/lib/http/handler'
 import { rolesFor } from '@/lib/auth/permissions'
 
-async function getCertificates(req: NextRequest) {
-  // Cookie-bound client: RLS applies to every query in this handler.
-  const supabase = await createClient()
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser()
-  const session = user ? { user } : null
-  if (authError || !session) {
-    return new NextResponse(JSON.stringify({ error: 'Unauthorized' }), { status: 401 })
-  }
-  const { data: currentProfile } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', session.user.id)
-    .maybeSingle()
-  if (!currentProfile || currentProfile.role !== 'admin')
-    return NextResponse.json({ error: 'Access denied.' }, { status: 403 })
-
+// F-29: authentication, the admin check, CSRF, rate limiting and body validation happen in withApi.
+async function getCertificates(request: Request, supabase: SupabaseClient) {
   try {
-    const pagination = pagePaginationFromSearchParams(new URL(req.url).searchParams)
+    const pagination = pagePaginationFromSearchParams(new URL(request.url).searchParams)
     const result = await listCertificates(supabase, { page: pagination.page, pageSize: pagination.pageSize })
     const mapped: CertificateRecord[] = result.data.map((row) => ({
       id: String(row.id),
@@ -58,54 +38,8 @@ async function getCertificates(req: NextRequest) {
   }
 }
 
-async function postCertificate(req: NextRequest) {
-  const rejected = validateMutationRequest(req)
-  if (rejected) return rejected
-  // Cookie-bound client: RLS applies to every query in this handler.
-  const supabase = await createClient()
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser()
-  const session = user ? { user } : null
-  if (authError || !session) {
-    return new NextResponse(JSON.stringify({ error: 'Unauthorized' }), { status: 401 })
-  }
-
-  // Fetch the user's profile to check role
-  const { data: profile, error: profileError } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', session.user.id)
-    .single()
-  if (profileError || !profile) {
-    return unexpectedApiError(
-      profileError ?? new Error('User profile was not found.'),
-      'Unable to fetch certificate creator profile',
-    )
-  }
-
-  // Only admin can create certificates
-  if (profile.role !== 'admin') {
-    return new NextResponse(JSON.stringify({ error: 'Insufficient permissions to create certificate' }), {
-      status: 403,
-    })
-  }
-  const limit = await rateLimit(`user:${session.user.id}:/api/certificates`, 10, '15 m')
-  if (!limit.success)
-    return NextResponse.json(
-      { error: 'Too many requests.' },
-      {
-        status: 429,
-        headers: { 'Retry-After': String(limit.retryAfterSeconds) },
-      },
-    )
-
+async function postCertificate(parsedBody: z.infer<typeof certificateSchema>, supabase: SupabaseClient) {
   try {
-    const body = await req.json()
-    // Validate the request body with zod schema
-    const parsedBody = certificateSchema.parse(body)
-
     const {
       certificateId,
       studentRegisterId,
@@ -178,22 +112,24 @@ async function postCertificate(req: NextRequest) {
           trainerName: data.trainer_name ? String(data.trainer_name) : undefined,
           customNote: data.custom_note ? String(data.custom_note) : undefined,
           issuedAt: data.issued_at ? String(data.issued_at) : undefined,
-          verificationCode: undefined,
+          verificationCode,
         } as CertificateRecord,
       },
       { status: 201 },
     )
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: error.issues }, { status: 400 })
-    }
     return unexpectedApiError(error, 'Unable to record certificate')
   }
 }
 
-export const GET = withApi({ roles: rolesFor('certificates', 'read') }, async ({ request }) =>
-  getCertificates(request as NextRequest),
+export const GET = withApi({ roles: rolesFor('certificates', 'read') }, async ({ request, supabase }) =>
+  getCertificates(request, supabase!),
 )
-export const POST = withApi({ roles: rolesFor('certificates', 'create') }, async ({ request }) =>
-  postCertificate(request as NextRequest),
+export const POST = withApi(
+  {
+    roles: rolesFor('certificates', 'create'),
+    body: certificateSchema,
+    userRateLimit: { limit: 10, window: '15 m' },
+  },
+  async ({ body, supabase }) => postCertificate(body, supabase!),
 )

@@ -1,4 +1,5 @@
 import 'server-only'
+import { safeFormUrl, safeSheetUrl } from '@/lib/validation'
 import { createClient } from '@/lib/supabase/server'
 import { normalizeJoined } from '@/lib/supabase/relations'
 
@@ -44,8 +45,8 @@ export async function listAssessmentPage(options: {
             title: String(row.title),
             maxScore: Number(row.max_score),
             assessmentDate: String(row.assessment_date),
-            formUrl: row.form_url ? String(row.form_url) : null,
-            sheetUrl: row.sheet_url ? String(row.sheet_url) : null,
+            formUrl: safeFormUrl(row.form_url),
+            sheetUrl: safeSheetUrl(row.sheet_url),
             createdAt: String(row.created_at),
             createdBy: profile
               ? { id: String(profile.id), fullName: String(profile.full_name ?? ''), role: String(profile.role) }
@@ -112,8 +113,8 @@ export async function listAssessmentPage(options: {
         title: String(row.title),
         maxScore: Number(row.max_score),
         assessmentDate: String(row.assessment_date),
-        formUrl: row.form_url ? String(row.form_url) : null,
-        sheetUrl: row.sheet_url ? String(row.sheet_url) : null,
+        formUrl: safeFormUrl(row.form_url),
+        sheetUrl: safeSheetUrl(row.sheet_url),
         createdAt: String(row.created_at),
         createdBy: profileMap.get(String(row.created_by)) ?? null,
       })),

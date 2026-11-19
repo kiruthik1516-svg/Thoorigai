@@ -13,6 +13,8 @@ export interface ParsedScoreRow {
   rawScore: string
   matchType: 'id' | 'name-exact' | 'name-fuzzy' | 'manual' | 'unmatched'
   existingScore?: number | null
+  /** F-24: score is below 0 or above the maximum; shown in the preview and never imported. */
+  outOfRange?: boolean
 }
 
 export interface StudentOption {
@@ -21,40 +23,60 @@ export interface StudentOption {
   name: string
 }
 
+/**
+ * Quote-aware CSV/TSV parser (F-24). Newlines inside quoted cells belong to the cell, so
+ * multi-line answers no longer split one response across several rows.
+ */
 export function parseCsvOrTsv(text: string): string[][] {
-  const lines = text.split(/\r?\n/).filter((line) => line.trim().length > 0)
-  if (lines.length === 0) return []
+  const source = text.replace(/^\uFEFF/, '')
+  if (!source.trim()) return []
 
-  // Check if delimiter is tab or comma
-  const firstLine = lines[0]
+  const firstLine = source.split(/\r?\n/, 1)[0] ?? ''
   const tabCount = (firstLine.match(/\t/g) || []).length
   const commaCount = (firstLine.match(/,/g) || []).length
   const delimiter = tabCount > commaCount ? '\t' : ','
 
-  return lines.map((line) => {
-    const row: string[] = []
-    let inQuotes = false
-    let currentCell = ''
+  const rows: string[][] = []
+  let row: string[] = []
+  let cell = ''
+  let inQuotes = false
 
-    for (let i = 0; i < line.length; i++) {
-      const char = line[i]
+  const endCell = () => {
+    row.push(cell.trim())
+    cell = ''
+  }
+  const endRow = () => {
+    endCell()
+    if (row.some((value) => value.length > 0)) rows.push(row)
+    row = []
+  }
+
+  for (let i = 0; i < source.length; i++) {
+    const char = source[i]
+    if (inQuotes) {
       if (char === '"') {
-        if (inQuotes && line[i + 1] === '"') {
-          currentCell += '"'
+        if (source[i + 1] === '"') {
+          cell += '"'
           i++
         } else {
-          inQuotes = !inQuotes
+          inQuotes = false
         }
-      } else if (char === delimiter && !inQuotes) {
-        row.push(currentCell.trim())
-        currentCell = ''
       } else {
-        currentCell += char
+        cell += char
       }
+    } else if (char === '"') {
+      inQuotes = true
+    } else if (char === delimiter) {
+      endCell()
+    } else if (char === '\n' || char === '\r') {
+      if (char === '\r' && source[i + 1] === '\n') i++
+      endRow()
+    } else {
+      cell += char
     }
-    row.push(currentCell.trim())
-    return row
-  })
+  }
+  endRow()
+  return rows
 }
 
 export function extractNumericScore(rawScore: string, maxScore: number): number | null {
@@ -69,9 +91,9 @@ export function extractNumericScore(rawScore: string, maxScore: number): number 
     if (!isNaN(num) && !isNaN(den) && den > 0) {
       // If denominator differs from maxScore, scale appropriately
       if (den !== maxScore && maxScore > 0) {
-        return Math.min(maxScore, Math.round((num / den) * maxScore * 100) / 100)
+        return Math.round((num / den) * maxScore * 100) / 100
       }
-      return Math.min(maxScore, Math.max(0, num))
+      return num
     }
   }
 
@@ -80,14 +102,15 @@ export function extractNumericScore(rawScore: string, maxScore: number): number 
   if (pctMatch) {
     const pct = parseFloat(pctMatch[1])
     if (!isNaN(pct)) {
-      return Math.min(maxScore, Math.max(0, Math.round((pct / 100) * maxScore * 100) / 100))
+      return Math.round((pct / 100) * maxScore * 100) / 100
     }
   }
 
   // Case 3: Simple decimal/number: "28" or "28.5"
+  // F-24: no silent clamping; out-of-range values are flagged by the caller instead.
   const simpleNum = parseFloat(cleaned)
   if (!isNaN(simpleNum)) {
-    return Math.min(maxScore, Math.max(0, simpleNum))
+    return simpleNum
   }
 
   return null
@@ -247,6 +270,7 @@ export function parseGoogleFormResponses(
       rawScore,
       matchType,
       existingScore,
+      outOfRange: numericScore < 0 || numericScore > maxScore,
     })
   }
 

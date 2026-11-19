@@ -1,34 +1,18 @@
 import { NextResponse } from 'next/server'
-import type { NextRequest } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import type { SupabaseClient, User } from '@supabase/supabase-js'
 import { getSupabaseAdminClient } from '@/lib/supabase/admin'
 import { courseMaterialSchema, courseMaterialResponseSchema } from '@/lib/validation'
 import { unexpectedApiError } from '@/lib/api-response'
 import { pagePaginationFromSearchParams } from '@/lib/pagination'
 import { normalizeJoined } from '@/lib/supabase/relations'
 import z from 'zod'
-import { validateMutationRequest } from '@/lib/security/csrf'
 import { validateCourseMaterialFile } from '@/lib/security/uploads'
 import { withApi } from '@/lib/http/handler'
 import { rolesFor } from '@/lib/auth/permissions'
 
-async function getCourseMaterials(req: NextRequest, requestId: string) {
-  // User client enforces RLS; service role is used only for signed storage URLs.
-  const supabase = await createClient()
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser()
-  const session = user ? { user } : null
-  if (authError || !session) {
-    return new NextResponse(JSON.stringify({ error: 'Unauthorized' }), { status: 401 })
-  }
-
-  const { data: currentProfile } = await supabase.from('profiles').select('role').eq('id', user!.id).maybeSingle()
-  if (!currentProfile || !['admin', 'staff'].includes(currentProfile.role)) {
-    return NextResponse.json({ error: 'Access denied.' }, { status: 403 })
-  }
-
+// F-29: authentication, the role check and CSRF happen in withApi. The user client enforces
+// RLS; the service role is used only for signed storage URLs.
+async function getCourseMaterials(req: Request, requestId: string, supabase: SupabaseClient) {
   try {
     const { searchParams } = new URL(req.url)
     const courseId = searchParams.get('courseId')
@@ -119,39 +103,17 @@ async function getCourseMaterials(req: NextRequest, requestId: string) {
   }
 }
 
-async function postCourseMaterial(req: NextRequest, requestId: string) {
-  const rejected = validateMutationRequest(req, ['multipart/form-data'])
-  if (rejected) return rejected
-  // User client enforces RLS; service role is used only for signed storage URLs.
-  const supabase = await createClient()
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser()
-  const session = user ? { user } : null
-  if (authError || !session) {
-    return new NextResponse(JSON.stringify({ error: 'Unauthorized' }), { status: 401 })
-  }
-
-  // Get the current user's profile to get their ID and role
-  const { data: profile, error: profileError } = await supabase
+async function postCourseMaterial(req: Request, requestId: string, supabase: SupabaseClient, user: User) {
+  const { data: profile } = await supabase
     .from('profiles')
-    .select('*')
-    .eq('id', session.user.id)
-    .single()
-
-  if (profileError || !profile) {
+    .select('id, full_name, role')
+    .eq('id', user.id)
+    .maybeSingle()
+  if (!profile) {
     return unexpectedApiError(
-      profileError ?? new Error('User profile was not found.'),
+      new Error('User profile was not found.'),
       'Unable to fetch course material uploader profile',
     )
-  }
-
-  // Check permissions: only staff and admin can upload course materials
-  const hasPermission = profile.role === 'admin' || profile.role === 'staff'
-
-  if (!hasPermission) {
-    return NextResponse.json({ error: 'Insufficient permissions to upload course material' }, { status: 403 })
   }
 
   try {
@@ -196,7 +158,7 @@ async function postCourseMaterial(req: NextRequest, requestId: string) {
       title: parsedBody.title,
       type: parsedBody.type,
       storage_path: storagePath,
-      uploaded_by: session.user.id,
+      uploaded_by: user.id,
     }
 
     const { data: courseMaterial, error: courseMaterialError } = await supabase
@@ -258,8 +220,8 @@ async function postCourseMaterial(req: NextRequest, requestId: string) {
   }
 }
 
-export const GET = withApi({ roles: rolesFor('materials', 'read') }, async ({ request, requestId }) =>
-  getCourseMaterials(request as NextRequest, requestId),
+export const GET = withApi({ roles: rolesFor('materials', 'read') }, async ({ request, requestId, supabase }) =>
+  getCourseMaterials(request, requestId, supabase!),
 )
 export const POST = withApi(
   {
@@ -267,7 +229,7 @@ export const POST = withApi(
     mutationContentTypes: ['multipart/form-data'],
     userRateLimit: { limit: 10, window: '1 m' },
   },
-  async ({ request, requestId }) => postCourseMaterial(request as NextRequest, requestId),
+  async ({ request, requestId, supabase, user }) => postCourseMaterial(request, requestId, supabase!, user!),
 )
 
 const deleteMaterialQuery = z.object({ id: z.guid() })

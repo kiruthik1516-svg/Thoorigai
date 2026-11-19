@@ -22,6 +22,7 @@ import { Card } from '@/components/ui/Card'
 import { PillButton } from '@/components/ui/PillButton'
 import { Tag } from '@/components/ui/Tag'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { apiErrorMessage } from '@/lib/api/error-message'
 
 const PRESET_DURATIONS = ['4 weeks', '6 weeks', '8 weeks', '12 weeks', '16 weeks', '1.5 Months', '3 Months', '6 Months']
 
@@ -94,7 +95,7 @@ export function CourseCategoriesManager({
         })
         if (!res.ok) {
           const body = await res.json().catch(() => ({}))
-          throw new Error(body.error?.message || body.error || 'Failed to update category.')
+          throw new Error(apiErrorMessage(body, 'Failed to update category.'))
         }
         const updated = await res.json()
         setCategories((prev) =>
@@ -111,7 +112,7 @@ export function CourseCategoriesManager({
         })
         if (!res.ok) {
           const body = await res.json().catch(() => ({}))
-          throw new Error(body.error?.message || body.error || 'Failed to create category.')
+          throw new Error(apiErrorMessage(body, 'Failed to create category.'))
         }
         const created = await res.json()
         setCategories((prev) => [...prev, created].sort((a, b) => a.name.localeCompare(b.name)))
@@ -134,7 +135,7 @@ export function CourseCategoriesManager({
       })
       if (!res.ok) {
         const body = await res.json().catch(() => ({}))
-        throw new Error(body.error?.message || body.error || 'Failed to delete category.')
+        throw new Error(apiErrorMessage(body, 'Failed to delete category.'))
       }
       setCategories((prev) => prev.filter((c) => c.id !== categoryToDelete.id))
       setConfirmOpen(false)

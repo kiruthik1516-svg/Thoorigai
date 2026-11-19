@@ -16,6 +16,7 @@ export function StudentDetailClient({
   role = 'admin',
   attendance = [],
   assessments = [],
+  certificateVerificationCode = null,
 }: {
   student: Student
   payments: Payment[]
@@ -33,6 +34,8 @@ export function StudentDetailClient({
     remarks?: string | null
     gradedAt?: string | null
   }[]
+  /** Active verification code of the student's latest certificate (admin only). */
+  certificateVerificationCode?: string | null
 }) {
   const router = useRouter()
   const recordPayment = useRecordPaymentMutation(student.registerId)
@@ -47,6 +50,7 @@ export function StudentDetailClient({
       role={role}
       attendance={attendance}
       assessments={assessments}
+      certificateVerificationCode={certificateVerificationCode}
       onBack={() => router.back()}
       onCertificate={() => router.push(`/students/${student.registerId}/certificate`)}
       onInvoice={(payment) => router.push(`/invoices/${encodeURIComponent(payment.invoice)}`)}

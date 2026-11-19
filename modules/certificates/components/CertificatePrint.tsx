@@ -6,6 +6,7 @@ import type { CertificateRecord, Student } from '@/lib/types'
 import { useEffect, useRef, useState, cloneElement } from 'react'
 import { createPortal } from 'react-dom'
 import { brand } from '@/lib/brand'
+import { apiErrorMessage } from '@/lib/api/error-message'
 
 const CERT_W = 620
 const CERT_H = 877
@@ -233,7 +234,7 @@ export function CertificatePrint({
       })
       if (!res.ok) {
         const body = await res.json().catch(() => ({ error: 'Failed to save certificate' }))
-        throw new Error(body.error || `Request failed (${res.status})`)
+        throw new Error(apiErrorMessage(body, `Request failed (${res.status})`))
       }
       setSaveStatus('saved')
       setTimeout(() => setSaveStatus('idle'), 4000)

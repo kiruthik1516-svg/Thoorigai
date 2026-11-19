@@ -36,6 +36,7 @@ import { CategoryBadge } from '@/components/CategoryBadge'
 import { GoogleFormsImportModal } from './GoogleFormsImportModal'
 import { ClassroomQRModal } from './ClassroomQRModal'
 import { KpiCard } from '@/components/ui/KpiCard'
+import { apiErrorMessage } from '@/lib/api/error-message'
 
 export type Assessment = {
   id: string
@@ -212,7 +213,7 @@ export function Assessments({
       const response = await fetch(`/api/assessments?${queryParams.toString()}`)
       if (!response.ok) {
         const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to fetch assessments')
+        throw new Error(apiErrorMessage(errorData, 'Failed to fetch assessments'))
       }
       const data = await response.json()
       setAssessments(data.data || [])
@@ -243,7 +244,7 @@ export function Assessments({
       const response = await fetch(`/api/assessments/${assessmentId}/results?page=1&pageSize=100`)
       if (!response.ok) {
         const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to fetch assessment results')
+        throw new Error(apiErrorMessage(errorData, 'Failed to fetch assessment results'))
       }
       const data = await response.json()
       const list: AssessmentResult[] = data.data || []
@@ -346,7 +347,7 @@ export function Assessments({
 
       if (!response.ok) {
         const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to create assessment')
+        throw new Error(apiErrorMessage(errorData, 'Failed to create assessment'))
       }
 
       const data = await response.json()
@@ -389,7 +390,7 @@ export function Assessments({
 
       if (!response.ok) {
         const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to save result')
+        throw new Error(apiErrorMessage(errorData, 'Failed to save result'))
       }
 
       await fetchAssessmentResults(selectedAssessmentId)
@@ -426,7 +427,7 @@ export function Assessments({
 
       if (!response.ok) {
         const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to save bulk scores')
+        throw new Error(apiErrorMessage(errorData, 'Failed to save bulk scores'))
       }
 
       await fetchAssessmentResults(selectedAssessmentId)

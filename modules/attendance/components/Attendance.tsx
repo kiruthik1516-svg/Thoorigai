@@ -12,6 +12,7 @@ import { TableCell } from '@/components/ui/table-cell'
 import { TableHead } from '@/components/ui/table-head'
 import { ChevronDown, ChevronUp, Calendar, Filter, Search, User, List } from 'lucide-react'
 import { format, parseISO } from 'date-fns'
+import { apiErrorMessage } from '@/lib/api/error-message'
 
 type AttendanceRecord = {
   id: string
@@ -60,7 +61,7 @@ export function Attendance() {
       const response = await fetch(`/api/attendance?${queryParams.toString()}`)
       if (!response.ok) {
         const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to fetch attendance records')
+        throw new Error(apiErrorMessage(errorData, 'Failed to fetch attendance records'))
       }
       const data = await response.json()
       setAttendanceRecords(data.data)

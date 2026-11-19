@@ -28,6 +28,7 @@ import { CategoryBadge } from '@/components/CategoryBadge'
 import { money } from '@/lib/formatters'
 import { PAYMENT_TYPES, type Course } from '@/lib/types'
 import { calculateGstForRupees, differenceRupees, percentageOfRupees } from '@/lib/money'
+import { apiErrorMessage } from '@/lib/api/error-message'
 
 export interface StudentPaymentCandidate {
   id: string
@@ -195,7 +196,7 @@ export function RecordPaymentForm({ initialStudent = null, students, courses, gs
 
       const json = await res.json()
       if (!res.ok) {
-        throw new Error(json?.message || 'Failed to record payment.')
+        throw new Error(apiErrorMessage(json, 'Failed to record payment.'))
       }
 
       idempotencyRef.current = null

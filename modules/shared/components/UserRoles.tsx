@@ -30,6 +30,7 @@ import {
   UserMinus,
   ShieldAlert,
 } from 'lucide-react'
+import { apiErrorMessage } from '@/lib/api/error-message'
 
 type UserProfile = {
   id: string
@@ -43,18 +44,7 @@ type UserProfile = {
 }
 type FilterTab = 'all' | 'pending' | 'staff' | 'admin' | 'invites'
 
-function getErrorMessage(result: unknown, fallback: string): string {
-  if (result && typeof result === 'object') {
-    const r = result as Record<string, unknown>
-    if (typeof r.error === 'string') return r.error
-    if (r.error && typeof r.error === 'object') {
-      const errObj = r.error as Record<string, unknown>
-      if (typeof errObj.message === 'string') return errObj.message
-    }
-    if (typeof r.message === 'string') return r.message
-  }
-  return fallback
-}
+const getErrorMessage = apiErrorMessage
 
 export function UserRoles({
   users,

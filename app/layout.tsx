@@ -1,4 +1,5 @@
 import localFont from 'next/font/local'
+import { Plus_Jakarta_Sans } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import { SpeedInsights } from '@vercel/speed-insights/next'
 import type { Metadata, Viewport } from 'next'
@@ -9,12 +10,21 @@ import { ThemeProvider } from '@/lib/ThemeContext'
 import './globals.css'
 import { QueryProvider } from '@/lib/query/QueryProvider'
 import { LoadingSpinner } from '@/components/LoadingSpinner'
+import { NonceProvider } from '@/components/NonceProvider'
 
 const outfit = localFont({
   src: '../public/fonts/outfit-latin-variable.woff2',
   variable: '--font-outfit-local',
   display: 'swap',
   weight: '100 900',
+})
+
+// F-25: self-hosted at build time. The old Google Fonts @import was blocked by the CSP on every page.
+const jakarta = Plus_Jakarta_Sans({
+  subsets: ['latin'],
+  weight: ['400', '500', '600', '700', '800'],
+  variable: '--font-jakarta-local',
+  display: 'swap',
 })
 
 const inter = localFont({
@@ -63,7 +73,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
     .join(';')
 
   return (
-    <html lang="en" className={`${outfit.variable} ${inter.variable}`} data-theme="light">
+    <html lang="en" className={`${outfit.variable} ${inter.variable} ${jakarta.variable}`} data-theme="light">
       <head>
         <style nonce={nonce}>{`:root{${brandVariables}}`}</style>
         <script
@@ -74,12 +84,14 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
         />
       </head>
       <body className="antialiased">
-        <ThemeProvider>
-          <QueryProvider>
-            {children}
-            <LoadingSpinner />
-          </QueryProvider>
-        </ThemeProvider>
+        <NonceProvider nonce={nonce}>
+          <ThemeProvider>
+            <QueryProvider>
+              {children}
+              <LoadingSpinner />
+            </QueryProvider>
+          </ThemeProvider>
+        </NonceProvider>
         <Analytics />
         <SpeedInsights />
       </body>

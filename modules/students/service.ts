@@ -119,7 +119,28 @@ export async function getStudentDetail(registerId: number) {
   const payments = can(role, 'payments', 'read')
     ? (await listPayments(supabase, { page: 1, pageSize: 100, studentId: registerId })).data
     : []
-  return { student: studentFromRow(row), payments }
+  // The dossier QR links to the student's latest certificate. Verification codes are admin-only.
+  let certificateVerificationCode: string | null = null
+  if (can(role, 'certificates', 'read')) {
+    const { data: certificate } = await supabase
+      .from('certificates')
+      .select('id')
+      .eq('student_id', row.id)
+      .order('issued_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+    if (certificate) {
+      const { data: document } = await supabase
+        .from('verifiable_documents')
+        .select('verification_code')
+        .eq('doc_type', 'certificate')
+        .eq('reference_id', String(certificate.id))
+        .eq('status', 'active')
+        .maybeSingle()
+      certificateVerificationCode = document?.verification_code ? String(document.verification_code) : null
+    }
+  }
+  return { student: studentFromRow(row), payments, certificateVerificationCode }
 }
 
 export async function getStudentAcademicHistory(registerId: number) {

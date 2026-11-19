@@ -2,6 +2,7 @@
 
 import * as React from 'react'
 import { cn } from '@/lib/utils'
+import { useNonce } from '@/components/NonceProvider'
 import * as RechartsPrimitive from 'recharts'
 
 // Format: { THEME_NAME: CSS_SELECTOR }
@@ -62,6 +63,8 @@ function ChartContainer({
 }
 
 const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
+  // F-25: the CSP only allows inline <style> with the request nonce.
+  const nonce = useNonce()
   const colorConfig = Object.entries(config).filter(([, config]) => config.theme || config.color)
 
   if (!colorConfig.length) {
@@ -70,6 +73,8 @@ const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
 
   return (
     <style
+      nonce={nonce}
+      suppressHydrationWarning
       dangerouslySetInnerHTML={{
         __html: Object.entries(THEMES)
           .map(

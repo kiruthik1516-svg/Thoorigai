@@ -32,6 +32,7 @@ export default async function StudentPage({ params }: PageProps<'/students/[regi
       role={profile.role}
       attendance={academicHistory.attendance}
       assessments={academicHistory.assessments}
+      certificateVerificationCode={result.certificateVerificationCode}
     />
   )
 }

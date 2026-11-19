@@ -18,8 +18,29 @@ describe('google-form-parser', () => {
     expect(extractNumericScore('29', 30)).toBe(29)
     expect(extractNumericScore('29.5', 30)).toBe(29.5)
 
-    // Clamps to maxScore
-    expect(extractNumericScore('35', 30)).toBe(30)
+    // F-24: no silent clamping; the caller flags out-of-range scores
+    expect(extractNumericScore('35', 30)).toBe(35)
+  })
+
+  it('keeps multi-line quoted answers in one row (F-24)', () => {
+    const csv = 'Name,Score,Feedback\nAsha,28 / 30,"Line one\nline two, with comma"\r\nBala,"24 / 30",""'
+    const rows = parseCsvOrTsv(csv)
+    expect(rows).toHaveLength(3)
+    expect(rows[1]).toEqual(['Asha', '28 / 30', 'Line one\nline two, with comma'])
+    expect(rows[2]).toEqual(['Bala', '24 / 30', ''])
+  })
+
+  it('flags scores above the maximum instead of clamping them (F-24)', () => {
+    const results = parseGoogleFormResponses(
+      'Student Name,Score\nAsha,35\nBala,20',
+      [
+        { id: 'u1', register_id: 1, name: 'Asha' },
+        { id: 'u2', register_id: 2, name: 'Bala' },
+      ],
+      30,
+    )
+    expect(results[0]).toMatchObject({ score: 35, outOfRange: true })
+    expect(results[1]).toMatchObject({ score: 20, outOfRange: false })
   })
 
   it('parses CSV and TSV table content correctly', () => {

@@ -4,7 +4,9 @@ const allowedTypes = {
   'image/jpeg': { extension: 'jpg', signature: [0xff, 0xd8, 0xff] },
 } as const
 
-export const MAX_COURSE_MATERIAL_BYTES = 20 * 1024 * 1024
+// F-34: uploads pass through a Vercel function, whose request body limit is 4.5 MB. 4 MB leaves
+// room for multipart overhead. Larger files would need signed upload URLs straight to Storage.
+export const MAX_COURSE_MATERIAL_BYTES = 4 * 1024 * 1024
 
 export async function validateCourseMaterialFile(file: File) {
   if (file.size < 1 || file.size > MAX_COURSE_MATERIAL_BYTES) return null

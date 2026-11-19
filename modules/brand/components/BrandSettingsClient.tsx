@@ -24,6 +24,7 @@ import {
 import { Card } from '@/components/ui/Card'
 import { PillButton } from '@/components/ui/PillButton'
 import { Tag } from '@/components/ui/Tag'
+import { apiErrorMessage } from '@/lib/api/error-message'
 
 export function BrandSettingsClient({ settings, editable }: { settings: BrandSettings; editable: boolean }) {
   const [formData, setFormData] = useState<BrandSettings>(settings)
@@ -90,7 +91,7 @@ export function BrandSettingsClient({ settings, editable }: { settings: BrandSet
 
       const data = await res.json()
       if (!res.ok) {
-        throw new Error(data.error?.message || data.error || 'Failed to update brand settings')
+        throw new Error(apiErrorMessage(data, 'Failed to update brand settings'))
       }
 
       if (data.data) {

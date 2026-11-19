@@ -36,6 +36,11 @@ export function studentFromRow(row: Record<string, unknown>): Student {
   }
 }
 
+/** LIKE pattern for user text: escapes %, _ and \ so they match literally (F-36). */
+export function likePattern(value: string): string {
+  return `%${value.replace(/[\\%_]/g, (match) => `\\${match}`)}%`
+}
+
 export function paymentFromRow(row: Record<string, unknown>): Payment {
   const amount = paiseToRupees(Number(row.amount ?? 0))
   const cgst = paiseToRupees(Number(row.cgst ?? 0))
@@ -123,17 +128,16 @@ export async function listStudents(
   }
 
   if (options.course && options.course.trim()) {
-    const courseQueryVal = options.course.trim()
-    const { data: matchedCourses } = await supabaseClient
-      .from('courses')
-      .select('id, name')
-      .or(`id.eq.${courseQueryVal},name.ilike.%${courseQueryVal}%`)
+    const courseQueryVal = options.course.trim().slice(0, 160)
+    // F-36: never interpolate the filter into .or(); each lookup passes it as a single value.
+    const [{ data: byId }, { data: byName }] = await Promise.all([
+      supabaseClient.from('courses').select('id, name').eq('id', courseQueryVal),
+      supabaseClient.from('courses').select('id, name').ilike('name', likePattern(courseQueryVal)),
+    ])
     const courseTerms = new Set<string>([courseQueryVal])
-    if (matchedCourses && matchedCourses.length > 0) {
-      for (const mc of matchedCourses) {
-        if (mc.name) courseTerms.add(mc.name)
-        if (mc.id) courseTerms.add(mc.id)
-      }
+    for (const mc of [...(byId ?? []), ...(byName ?? [])]) {
+      if (mc.name) courseTerms.add(mc.name)
+      if (mc.id) courseTerms.add(mc.id)
     }
     query = query.in('course', Array.from(courseTerms))
   } else if (options.categoryId && options.categoryId.trim()) {
@@ -152,6 +156,8 @@ export async function listStudents(
 
   const { data, error, count } = await query
     .order(options.sort ?? 'register_id', { ascending: options.direction === 'asc' })
+    // F-36: unique tiebreaker so offset pages never repeat or skip rows.
+    .order('register_id', { ascending: options.direction === 'asc' })
     .range(pagination.offset, pagination.offset + pagination.limit - 1)
 
   if (error) throw error
@@ -343,6 +349,7 @@ export async function listCertificates(
 
   const { data, error, count } = await query
     .order(options.sort ?? 'issue_date', { ascending: options.direction === 'asc' })
+    .order('id', { ascending: options.direction === 'asc' })
     .range(pagination.offset, pagination.offset + pagination.limit - 1)
 
   if (error) {

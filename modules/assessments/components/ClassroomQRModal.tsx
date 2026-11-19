@@ -23,12 +23,9 @@ export function ClassroomQRModal({ isOpen, onClose, formUrl, title, courseName }
       .then((url) => {
         if (isMounted) setQrImageUrl(url)
       })
+      // F-35: never send the form link to a third-party QR service; show no image instead.
       .catch(() => {
-        if (isMounted) {
-          setQrImageUrl(
-            `https://api.qrserver.com/v1/create-qr-code/?size=300x300&margin=15&data=${encodeURIComponent(formUrl)}`,
-          )
-        }
+        if (isMounted) setQrImageUrl('')
       })
     return () => {
       isMounted = false

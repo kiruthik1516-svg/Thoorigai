@@ -37,6 +37,8 @@ import { format, parseISO } from 'date-fns'
 import { Button } from '@/components/ui/button'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import type { CourseMaterial } from '@/modules/materials/types'
+import { apiErrorMessage } from '@/lib/api/error-message'
+import { MAX_COURSE_MATERIAL_BYTES } from '@/lib/security/uploads'
 
 interface CourseMaterialsProps {
   courseId: string
@@ -94,7 +96,7 @@ export function CourseMaterials({
       const response = await fetch(`/api/course-materials?courseId=${encodeURIComponent(courseId)}`)
       if (!response.ok) {
         const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to fetch course materials')
+        throw new Error(apiErrorMessage(errorData, 'Failed to fetch course materials'))
       }
       const data = await response.json()
       setMaterials(data.data || [])
@@ -217,8 +219,8 @@ export function CourseMaterials({
 
   // Handle file selection and auto-detect type/title
   const handleSelectFile = (file: File) => {
-    if (file.size > 20 * 1024 * 1024) {
-      setError('File must be 20 MB or smaller.')
+    if (file.size > MAX_COURSE_MATERIAL_BYTES) {
+      setError('File must be 4 MB or smaller.')
       return
     }
 
@@ -280,7 +282,7 @@ export function CourseMaterials({
           } else {
             try {
               const errResp = JSON.parse(xhr.responseText)
-              reject(new Error(errResp.error || 'Upload failed. Check format and permissions.'))
+              reject(new Error(apiErrorMessage(errResp, 'Upload failed. Check format and permissions.')))
             } catch {
               reject(new Error('Upload failed. Check format and permissions.'))
             }
@@ -915,7 +917,7 @@ export function CourseMaterials({
                       </span>
                     </p>
                     <p className="text-xs text-[var(--mute)] mt-1">
-                      Supports PDF documents, PNG, and JPEG files up to 20 MB
+                      Supports PDF documents, PNG, and JPEG files up to 4 MB
                     </p>
                   </div>
                 )}

@@ -3,11 +3,12 @@
 import { useRouter } from 'next/navigation'
 import type { Course, CourseCategory } from '@/lib/types'
 import { CoursesManager } from '@/modules/courses/components/CoursesManager'
+import { apiErrorMessage } from '@/lib/api/error-message'
 
 async function apiError(response: Response) {
   if (response.ok) return
   const result = await response.json()
-  throw new Error(result.error?.message ?? result.error ?? 'Course change failed.')
+  throw new Error(apiErrorMessage(result, 'Course change failed.'))
 }
 
 export function CoursesManagerClient({

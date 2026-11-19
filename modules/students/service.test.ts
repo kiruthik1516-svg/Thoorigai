@@ -145,7 +145,14 @@ describe('student service', () => {
     await expect(getStudentDetail(8)).resolves.toEqual({
       student: { registerId: 8, name: 'Asha', paid: 0 },
       payments: [{ id: 'p1' }],
+      certificateVerificationCode: null,
     })
+
+    // Admins get the latest certificate's active verification code for the dossier QR.
+    mocks.rows.certificates = { id: 'cert-1' }
+    mocks.rows.verifiable_documents = { verification_code: 'VERIFY-1' }
+    mocks.listPayments.mockResolvedValueOnce({ data: [] })
+    await expect(getStudentDetail(8)).resolves.toMatchObject({ certificateVerificationCode: 'VERIFY-1' })
   })
 
   it('omits payment history for staff', async () => {
@@ -154,6 +161,7 @@ describe('student service', () => {
     await expect(getStudentDetail(8)).resolves.toEqual({
       student: { registerId: 8, name: 'Asha', paid: 0 },
       payments: [],
+      certificateVerificationCode: null,
     })
     expect(mocks.listPayments).not.toHaveBeenCalled()
   })

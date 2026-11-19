@@ -31,6 +31,7 @@ import { Card } from '@/components/ui/Card'
 import { PillButton } from '@/components/ui/PillButton'
 import { Tag } from '@/components/ui/Tag'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { apiErrorMessage } from '@/lib/api/error-message'
 
 type SkillCategory = 'all' | 'frontend' | 'backend' | 'ai_data' | 'cloud_devops' | 'levels' | 'general'
 
@@ -220,7 +221,7 @@ export function SkillTagsManager({
       })
       const json = await res.json().catch(() => ({}))
       if (!res.ok) {
-        throw new Error(json.error?.message || json.error || json.message || 'Failed to create skill')
+        throw new Error(apiErrorMessage(json, 'Failed to create skill'))
       }
       const created = json.data as SkillTag
       const updated = [...skills, created]
@@ -260,7 +261,7 @@ export function SkillTagsManager({
       })
       const json = await res.json().catch(() => ({}))
       if (!res.ok) {
-        throw new Error(json.error?.message || json.error || json.message || 'Failed to update skill')
+        throw new Error(apiErrorMessage(json, 'Failed to update skill'))
       }
       const updatedItem = json.data as SkillTag
       const updated = skills.map((s) => (s.id === id ? updatedItem : s))
@@ -293,7 +294,7 @@ export function SkillTagsManager({
       })
       if (!res.ok) {
         const json = await res.json().catch(() => ({}))
-        throw new Error(json.error?.message || json.error || json.message || 'Failed to delete skill')
+        throw new Error(apiErrorMessage(json, 'Failed to delete skill'))
       }
       const updated = skills.filter((s) => s.id !== skillToDelete.id)
       setSkills(updated)

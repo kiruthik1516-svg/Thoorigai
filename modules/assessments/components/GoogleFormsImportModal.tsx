@@ -14,6 +14,7 @@ import {
   RefreshCw,
 } from 'lucide-react'
 import { parseGoogleFormResponses, type ParsedScoreRow, type StudentOption } from '../utils/google-form-parser'
+import { apiErrorMessage } from '@/lib/api/error-message'
 
 interface GoogleFormsImportModalProps {
   isOpen: boolean
@@ -101,12 +102,14 @@ export function GoogleFormsImportModal({
     )
   }
 
-  const matchedValidCount = parsedRows.filter((r) => r.matched && r.studentId !== null).length
+  const isImportable = (r: ParsedScoreRow) => r.matched && r.studentId !== null && !r.outOfRange
+  const matchedValidCount = parsedRows.filter(isImportable).length
+  const outOfRangeCount = parsedRows.filter((r) => r.outOfRange).length
   const unmatchedCount = parsedRows.filter((r) => !r.matched || r.studentId === null).length
   const updateExistingCount = parsedRows.filter((r) => r.matched && r.existingScore !== null).length
 
   const handleCommitImport = async () => {
-    const validRows = parsedRows.filter((r) => r.matched && r.studentId !== null)
+    const validRows = parsedRows.filter(isImportable)
     if (validRows.length === 0) {
       setErrorMessage('No matched students to import. Please assign students or check response format.')
       return
@@ -132,7 +135,7 @@ export function GoogleFormsImportModal({
 
       if (!response.ok) {
         const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to save imported assessment scores')
+        throw new Error(apiErrorMessage(errorData, 'Failed to save imported assessment scores'))
       }
 
       onImportSuccess()
@@ -276,6 +279,11 @@ export function GoogleFormsImportModal({
                       {updateExistingCount} will update existing
                     </span>
                   )}
+                  {outOfRangeCount > 0 && (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-rose-100 text-rose-800 font-semibold">
+                      <AlertCircle size={12} /> {outOfRangeCount} out of range (skipped)
+                    </span>
+                  )}
                   {unmatchedCount > 0 && (
                     <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-rose-100 text-rose-800 font-semibold">
                       <AlertCircle size={12} /> {unmatchedCount} Unrecognized
@@ -331,7 +339,11 @@ export function GoogleFormsImportModal({
                           )}
                         </td>
                         <td className="p-2.5 text-center">
-                          {row.matched ? (
+                          {row.outOfRange ? (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-rose-50 text-rose-700 border border-rose-200">
+                              Out of range
+                            </span>
+                          ) : row.matched ? (
                             <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
                               Ready
                             </span>

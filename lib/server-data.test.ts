@@ -221,3 +221,11 @@ describe('server data mapping and pagination', () => {
     ).rejects.toThrow('duplicate certificate')
   })
 })
+
+describe('likePattern (F-36)', () => {
+  it('wraps text in wildcards and escapes LIKE metacharacters', async () => {
+    const { likePattern } = await import('./server-data')
+    expect(likePattern('Web Dev')).toBe('%Web Dev%')
+    expect(likePattern('100%_off\\x')).toBe('%100\\%\\_off\\\\x%')
+  })
+})

@@ -74,6 +74,7 @@ export function StudentDetail({
   role = 'admin',
   attendance = [],
   assessments = [],
+  certificateVerificationCode = null,
 }: {
   student: Student
   payments: Payment[]
@@ -95,6 +96,8 @@ export function StudentDetail({
     remarks?: string | null
     gradedAt?: string | null
   }[]
+  /** Active verification code of the student's latest certificate (admin only). */
+  certificateVerificationCode?: string | null
 }) {
   const isStaff = role === 'staff'
   const balance = differenceRupees(student.total, student.paid)
@@ -1031,6 +1034,7 @@ export function StudentDetail({
               courseDuration={courseDuration}
               gstRate={gstRate}
               isPortalPrint={true}
+              certificateVerificationCode={certificateVerificationCode}
             />
           </div>,
           document.body,
@@ -1091,6 +1095,7 @@ export function StudentDetail({
                 categoryName={categoryName}
                 courseDuration={courseDuration}
                 gstRate={gstRate}
+                certificateVerificationCode={certificateVerificationCode}
               />
             </div>
           </div>

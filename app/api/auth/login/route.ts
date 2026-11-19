@@ -4,7 +4,16 @@ import { createClient } from '@/lib/supabase/server'
 import { validateMutationRequest } from '@/lib/security/csrf'
 import { rateLimit } from '@/lib/security/rate-limit'
 import { withApi } from '@/lib/http/handler'
-import { logProductEvent } from '@/lib/logger'
+import { logger, logProductEvent } from '@/lib/logger'
+import { getSupabaseAdminClient } from '@/lib/supabase/admin'
+
+// F-31: callers get fixed messages; logs carry the request id and error code, never the email.
+const GENERIC_FAILURE = 'Unable to sign in. Please try again.'
+const failureMessages: Record<string, string> = {
+  invalid_credentials: 'Incorrect email or password.',
+  email_not_confirmed: 'Please confirm your email address before signing in.',
+  user_banned: 'This account has been disabled. Contact your academy administrator.',
+}
 
 const credentialsSchema = z.object({
   email: z.string().email().max(254),
@@ -31,10 +40,10 @@ async function postLogin(request: Request, requestId: string) {
     const supabase = await createClient(requestId)
     const { data: authData, error } = await supabase.auth.signInWithPassword(parsed.data)
     if (error) {
-      console.error('[Login Failed]:', error.message, 'for email:', parsed.data.email)
+      logger.warn({ event: 'login_failed', requestId, code: error.code, status: error.status }, 'Sign-in failed')
       logProductEvent('login_failed', requestId)
       return NextResponse.json(
-        { error: error.message || 'Unable to sign in. Please try again.' },
+        { error: (error.code && failureMessages[error.code]) || GENERIC_FAILURE },
         {
           status: 401,
           headers: { 'x-request-id': requestId },
@@ -43,7 +52,6 @@ async function postLogin(request: Request, requestId: string) {
     }
     if (authData?.user) {
       // Query profiles table via adminClient to avoid RLS limitations and stale JWT claims
-      const { getSupabaseAdminClient } = await import('@/lib/supabase/admin')
       const adminClient = getSupabaseAdminClient(requestId)
       const { data: profile } = await adminClient
         .from('profiles')
@@ -77,10 +85,10 @@ async function postLogin(request: Request, requestId: string) {
     }
 
     return NextResponse.json({ data: { signedIn: true } }, { headers: { 'x-request-id': requestId } })
-  } catch (err: any) {
-    console.error('[Login Catch Error]:', err?.message || err)
+  } catch (err) {
+    logger.error({ event: 'login_error', requestId, err }, 'Sign-in request failed')
     return NextResponse.json(
-      { error: err?.message || 'Unable to sign in. Please try again.' },
+      { error: GENERIC_FAILURE },
       {
         status: 500,
         headers: { 'x-request-id': requestId },

@@ -88,13 +88,50 @@ export const attendanceSchema = z.object({
   status: z.enum(['Present', 'Absent', 'Exempt', 'Excused']).transform((val) => (val === 'Excused' ? 'Exempt' : val)),
 })
 
+/**
+ * F-35: form and sheet links are rendered as links and QR codes, so only https Google Forms /
+ * Sheets addresses are accepted. Empty strings mean "no link".
+ */
+const GOOGLE_FORM_HOSTS = ['docs.google.com', 'forms.gle', 'forms.google.com']
+const GOOGLE_SHEET_HOSTS = ['docs.google.com']
+
+export function isAllowedGoogleUrl(value: string, hosts: readonly string[]): boolean {
+  try {
+    const url = new URL(value)
+    return url.protocol === 'https:' && hosts.includes(url.hostname.toLowerCase()) && !url.username && !url.password
+  } catch {
+    return false
+  }
+}
+
+/** Returns a stored link only if it is still an allowed Google link; older rows are not trusted. */
+export function safeFormUrl(value: unknown): string | null {
+  return typeof value === 'string' && isAllowedGoogleUrl(value, GOOGLE_FORM_HOSTS) ? value : null
+}
+export function safeSheetUrl(value: unknown): string | null {
+  return typeof value === 'string' && isAllowedGoogleUrl(value, GOOGLE_SHEET_HOSTS) ? value : null
+}
+
+function googleUrlSchema(hosts: readonly string[], label: string) {
+  return z
+    .string()
+    .trim()
+    .max(2048)
+    .transform((value) => (value === '' ? null : value))
+    .refine((value) => value === null || isAllowedGoogleUrl(value, hosts), {
+      message: `${label} must be an https link on ${hosts.join(' or ')}`,
+    })
+    .optional()
+    .nullable()
+}
+
 export const assessmentSchema = z.object({
   courseId: z.string().min(1, { message: 'Course ID is required' }),
   title: z.string().min(1, { message: 'Title is required' }),
   maxScore: z.number().nonnegative({ message: 'Max score must be a non-negative number' }),
   assessmentDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, { message: 'Date must be in YYYY-MM-DD format' }),
-  formUrl: z.string().optional().nullable(),
-  sheetUrl: z.string().optional().nullable(),
+  formUrl: googleUrlSchema(GOOGLE_FORM_HOSTS, 'Form link'),
+  sheetUrl: googleUrlSchema(GOOGLE_SHEET_HOSTS, 'Sheet link'),
 })
 
 export const assessmentResultSchema = z.object({
