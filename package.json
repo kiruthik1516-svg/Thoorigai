@@ -102,7 +102,7 @@
     "supabase": "2.117.0",
     "tailwindcss": "^4.3.3",
     "typescript": "5.7.3",
-    "vercel": "61.0.0",
+    "vercel": "65.16.0",
     "vitest": "5.0.2"
   },
   "simple-git-hooks": {
