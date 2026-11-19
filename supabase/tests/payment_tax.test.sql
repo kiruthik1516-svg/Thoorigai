@@ -1,6 +1,6 @@
 -- Regression tests for 20261118130000_payment_tax_and_idempotency (F-07, F-08, F-16, F-19).
 begin;
-select plan(20);
+select plan(18);
 
 insert into auth.users (id, email, raw_app_meta_data, raw_user_meta_data, aud, role)
 values
@@ -45,11 +45,6 @@ select lives_ok(
        (select register_id from public.students where name = 'Tax Incl Student'),
        3600000, 'Card', current_date, null, null, null, 'tax-code-0003') $$,
   'admin records an inclusive-course payment (course name matched case- and space-insensitively)');
-select lives_ok(
-  $$ select public.record_payment_idempotent('tax-4', repeat('4', 64),
-       (select register_id from public.students where name = 'Tax Excl Student'),
-       100000, 'UPI', current_date, null, null, 0::numeric, 999999::bigint, 999999::bigint, 'tax-code-0004') $$,
-  'deprecated signature still works');
 reset role;
 
 select results_eq(
@@ -65,10 +60,6 @@ select results_eq(
   $$ select cgst, sgst, gst_inclusive, taxable_value, grand_total from public.payments where amount = 3600000 $$,
   $$ values (274577::bigint, 274576::bigint, true, 3050847::bigint, 3600000::bigint) $$,
   'F-07: inclusive payment total equals the amount and taxable value excludes GST');
-select results_eq(
-  $$ select cgst, sgst, gst_rate, payment_type from public.payments where amount = 100000 $$,
-  $$ values (9000::bigint, 9000::bigint, 18::numeric, '3rd Part Fees Payment') $$,
-  'F-08: client-sent rate and tax are ignored by the deprecated signature');
 select is((select paid from public.students where name = 'Tax Incl Student'), 3600000::bigint,
   'inclusive payments count their full amount against the fee');
 select throws_ok(

@@ -4,7 +4,7 @@ SQL in `supabase/migrations/` is the schema source of truth. Use forward-only mi
 
 ## Observed remote status
 
-The latest migration push transcript supplied by the project owner reported a successful cloud push through `20260929024205_date_range_reports.sql`. That is historical user-provided evidence, not a live database check. This checkout contains 29 later migrations that were added after that transcript and should be treated as pending until `supabase migration list --linked` confirms otherwise:
+The latest migration push transcript supplied by the project owner reported a successful cloud push through `20260929024205_date_range_reports.sql`. That is historical user-provided evidence, not a live database check. This checkout contains 30 later migrations that were added after that transcript and should be treated as pending until `supabase migration list --linked` confirms otherwise:
 
 - `20260929092557_provision_course_materials_storage.sql`
 - `20260929114233_observability_readiness_and_audit_correlation.sql`
@@ -35,6 +35,7 @@ The latest migration push transcript supplied by the project owner reported a su
 - `20261118140000_disable_users_instead_of_delete.sql`
 - `20261118150000_course_integrity.sql`
 - `20261119100000_enforce_course_assignments.sql`
+- `20261119110000_drop_deprecated_payment_overloads.sql`
 
 The older migration files include corrections made before the reported push. Do not edit any migration already recorded in the shared project's migration history; add a new migration instead. Never use `migration repair` to hide a schema mismatch without a reviewed recovery plan.
 
