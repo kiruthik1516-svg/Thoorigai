@@ -373,6 +373,7 @@ export function AuditLogView({
                 className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--mute)] pointer-events-none"
               />
               <input
+                aria-label="Search record ID, table, or action"
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -398,6 +399,7 @@ export function AuditLogView({
               ref={userSearchRef}
             >
               <input
+                aria-label="Filter by user name"
                 type="text"
                 value={userFilter}
                 onChange={(e) => {

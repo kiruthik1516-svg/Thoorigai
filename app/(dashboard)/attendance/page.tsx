@@ -121,6 +121,7 @@ export default async function AttendancePage({ searchParams }: PageProps<'/atten
 
   const recordsSection = (
     <RecordList
+      headingLevel="h2"
       title="Attendance records"
       description="Attendance logs by student and course session."
       basePath="/attendance"

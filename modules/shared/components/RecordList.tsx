@@ -17,6 +17,7 @@ export function RecordList({
   cursor,
   previousCursor,
   nextCursor,
+  headingLevel = 'h1',
   children,
 }: {
   title: string
@@ -34,8 +35,11 @@ export function RecordList({
   cursor?: string
   previousCursor?: string
   nextCursor?: string | null
+  /** F-38: use 'h2' when the list is embedded in a page that already has its h1. */
+  headingLevel?: 'h1' | 'h2'
   children: ReactNode
 }) {
+  const Heading = headingLevel
   const totalPages = Math.max(1, Math.ceil((totalCount ?? 0) / pageSize))
   const pageHref = (value: number, next?: string, prior?: string) => {
     const params = new URLSearchParams({
@@ -59,7 +63,7 @@ export function RecordList({
       <div className="page-heading">
         <div>
           <p className="eyebrow">THOORIGAI INFOTECH</p>
-          <h1>{title}</h1>
+          <Heading>{title}</Heading>
           <p className="subcopy">{description}</p>
         </div>
       </div>

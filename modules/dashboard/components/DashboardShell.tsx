@@ -40,6 +40,10 @@ export function DashboardShell({ role, children }: { role: Role; children: React
 
   return (
     <div className="app-shell w-full h-screen h-[100dvh] box-border flex overflow-hidden">
+      {/* F-38: keyboard users can jump past the navigation. */}
+      <a href="#main-content" className="skip-link">
+        Skip to main content
+      </a>
       {/* Full-width Inner Workspace */}
       <div className="app-shell-inner flex w-full h-full min-h-0 overflow-hidden">
         {/* Desktop / Large Screen Sidebar */}
@@ -84,7 +88,11 @@ export function DashboardShell({ role, children }: { role: Role; children: React
         {/* Main Content Area */}
         <div className="main-area flex-1 flex flex-col min-w-0 min-h-0 h-full max-h-screen max-h-[100dvh] overflow-hidden bg-transparent">
           <Topbar onMenu={handleToggleMenu} role={role} />
-          <main className="content flex-1 min-h-0 h-[calc(100vh-56px)] h-[calc(100dvh-56px)] max-h-[calc(100vh-56px)] max-h-[calc(100dvh-56px)] overflow-y-auto overflow-x-hidden p-4 sm:p-6 lg:p-8 bg-transparent">
+          <main
+            id="main-content"
+            tabIndex={-1}
+            className="content flex-1 min-h-0 h-[calc(100vh-56px)] h-[calc(100dvh-56px)] max-h-[calc(100vh-56px)] max-h-[calc(100dvh-56px)] overflow-y-auto overflow-x-hidden p-4 sm:p-6 lg:p-8 bg-transparent"
+          >
             {children}
           </main>
         </div>

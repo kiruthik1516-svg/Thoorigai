@@ -359,6 +359,7 @@ export function RecordPaymentForm({ initialStudent = null, students, courses, gs
               <div className="relative flex-1">
                 <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
+                  aria-label="Search by student name, ID (e.g. 1050 or TAI-1050), phone, or course"
                   type="text"
                   value={studentSearch}
                   onChange={(e) => setStudentSearch(e.target.value)}

@@ -900,6 +900,7 @@ export function UserRoles({
                   className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--mute)] pointer-events-none"
                 />
                 <input
+                  aria-label="Search name, ID, or role"
                   type="text"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}

@@ -209,6 +209,7 @@ export function CertificatesManagerClient({
           <form onSubmit={handleSearchSubmit} className="relative flex-1 max-w-md">
             <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--mute)]" />
             <input
+              aria-label="Search certificate ID, student name, or course"
               type="text"
               placeholder="Search certificate ID, student name, or course..."
               value={searchInput}

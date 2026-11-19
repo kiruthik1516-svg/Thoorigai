@@ -34,8 +34,12 @@ history, data access, and permission checks difficult to reason about.
    direction are represented in URL search parameters; page size defaults to 25 and is capped at 100.
    Client components handle interactions and mutations only.
 9. Dashboard aggregates come from PostgreSQL RPCs. Heavy print views and QR generation are loaded
-   lazily, while ordinary list and detail pages remain server-rendered.
-10. Route groups and nested route segments provide loading skeletons, retryable error boundaries, and
+   lazily, while ordinary list and detail pages remain server-rendered. The global search box queries
+   the server as the user types (8 results) instead of preloading lists in the browser. The root
+   layout stays dynamic because every response carries a per-request CSP nonce.
+10. The service-role client is limited to the reviewed callers listed in `docs/security.md`
+    ("Service-role access"); ESLint blocks it everywhere else.
+11. Route groups and nested route segments provide loading skeletons, retryable error boundaries, and
     not-found UI. Domain components and services share domain types instead of importing another
     domain's UI internals.
 

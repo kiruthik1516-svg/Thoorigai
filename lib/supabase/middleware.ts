@@ -3,6 +3,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { clientEnv } from '@/lib/env'
 import * as Sentry from '@sentry/nextjs'
 import { logger } from '@/lib/logger'
+import { isAdminSessionExpired } from '@/lib/auth/session-age'
 
 function unavailableStatus(error: unknown): 500 | 503 {
   const message = error instanceof Error ? `${error.name}: ${error.message}` : String(error)
@@ -92,7 +93,16 @@ export async function updateSession(request: NextRequest) {
       }
       return authenticationFailure(status, 'An unexpected authentication error occurred.', error, requestId)
     }
-    if (data?.claims) return response
+    if (data?.claims) {
+      if (!isAdminSessionExpired(data.claims)) return response
+      // F-27: admin sessions older than 12 hours must sign in again. signOut clears the auth
+      // cookies on `response`; copy them onto the redirect/401 we return.
+      logger.info({ event: 'admin_session_expired', requestId }, 'Admin session exceeded maximum age')
+      await supabase.auth.signOut({ scope: 'local' })
+      const expired = unauthenticated(request, requestId)
+      response.cookies.getAll().forEach((cookie) => expired.cookies.set(cookie))
+      return expired
+    }
   } catch (error) {
     const status = unavailableStatus(error)
     return authenticationFailure(

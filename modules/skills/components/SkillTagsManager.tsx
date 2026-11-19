@@ -490,6 +490,7 @@ export function SkillTagsManager({
             <div className="relative flex-1 max-w-md">
               <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--mute)]" />
               <input
+                aria-label="Search skill tags by name"
                 type="text"
                 placeholder="Search skill tags by name..."
                 value={searchQuery}

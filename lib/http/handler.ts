@@ -18,8 +18,6 @@ type ApiOptions = {
   body?: ZodTypeAny
   params?: ZodTypeAny
   successStatus?: number
-  requireAal2?: boolean
-  allowAdminAal1?: boolean
   mutationContentTypes?: readonly string[]
   userRateLimit?: { limit: number; window: '1 m' | '15 m' }
 } & ({ public: true; roles?: never } | { public?: false; roles: readonly Role[] })

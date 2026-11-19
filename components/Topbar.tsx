@@ -41,37 +41,53 @@ export function Topbar({ onMenu, role }: { onMenu: () => void; role: Role }) {
   const [students, setStudents] = useState<Student[]>([])
   const [payments, setPayments] = useState<Payment[]>([])
   const [resolvedStudentNames, setResolvedStudentNames] = useState<Record<string, string>>({})
-  const dataLoadedRef = useRef(false)
   const [loadingSearch, setLoadingSearch] = useState(false)
 
-  // Load students & payments on mount and on search bar focus
-  const loadSearchData = async () => {
-    if (dataLoadedRef.current) return
-    dataLoadedRef.current = true
-    setLoadingSearch(true)
-    try {
-      const [studentsRes, paymentsRes] = await Promise.all([
-        fetch('/api/students?page=1&pageSize=100'),
-        fetch('/api/payments?page=1&pageSize=100'),
-      ])
-      if (studentsRes.ok) {
-        const sJson = await studentsRes.json()
-        setStudents(sJson.data || [])
-      }
-      if (paymentsRes.ok) {
-        const pJson = await paymentsRes.json()
-        setPayments(pJson.data || [])
-      }
-    } catch (err) {
-      console.error('Failed to load search index', err)
-    } finally {
-      setLoadingSearch(false)
-    }
-  }
-
+  // F-39: search on the server as the user types (debounced) instead of downloading the first
+  // 100 students and payments on every page load and searching only those.
+  const canReadPayments = role === 'admin'
   useEffect(() => {
-    loadSearchData()
-  }, [])
+    const q = query.trim()
+    if (q.length < 2) {
+      setStudents([])
+      setPayments([])
+      return
+    }
+    const controller = new AbortController()
+    const timer = setTimeout(async () => {
+      setLoadingSearch(true)
+      try {
+        const term = q.replace(/^tai-/i, '')
+        const studentsRes = await fetch(`/api/students?page=1&pageSize=8&search=${encodeURIComponent(term)}`, {
+          signal: controller.signal,
+        })
+        const found: Student[] = studentsRes.ok ? ((await studentsRes.json()).data ?? []) : []
+        setStudents(found)
+        if (canReadPayments && found.length > 0) {
+          const invoiceLists = await Promise.all(
+            found.slice(0, 3).map(async (student) => {
+              const res = await fetch(
+                `/api/payments?page=1&pageSize=5&search=${encodeURIComponent(String(student.registerId))}`,
+                { signal: controller.signal },
+              )
+              return res.ok ? (((await res.json()).data ?? []) as Payment[]) : []
+            }),
+          )
+          setPayments(invoiceLists.flat())
+        } else {
+          setPayments([])
+        }
+      } catch (err) {
+        if (!(err instanceof DOMException && err.name === 'AbortError')) setPayments([])
+      } finally {
+        if (!controller.signal.aborted) setLoadingSearch(false)
+      }
+    }, 250)
+    return () => {
+      clearTimeout(timer)
+      controller.abort()
+    }
+  }, [query, canReadPayments])
 
   useEffect(() => {
     const parts = (pathname || '').split('/').filter(Boolean)
@@ -319,7 +335,6 @@ export function Topbar({ onMenu, role }: { onMenu: () => void; role: Role }) {
                 setOpen(true)
               }}
               onFocus={() => {
-                loadSearchData()
                 setOpen(true)
               }}
               placeholder="Search students…"

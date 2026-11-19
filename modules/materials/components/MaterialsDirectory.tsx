@@ -93,6 +93,7 @@ export function MaterialsDirectory({
         <div className="relative min-w-[220px]">
           <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--mute)]" />
           <input
+            aria-label="Search courses"
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}

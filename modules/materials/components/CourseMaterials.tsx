@@ -378,6 +378,7 @@ export function CourseMaterials({
           <div className="relative min-w-[200px] flex-1 sm:flex-initial">
             <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--mute)]" />
             <input
+              aria-label="Search files"
               type="text"
               placeholder="Search files..."
               value={search}

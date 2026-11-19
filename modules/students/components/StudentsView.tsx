@@ -160,6 +160,7 @@ export function StudentsView({
                 className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--mute)] pointer-events-none"
               />
               <input
+                aria-label="Search name, phone, or register ID"
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}

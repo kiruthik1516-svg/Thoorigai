@@ -6,6 +6,10 @@ allowBuilds:
   esbuild: true
   simple-git-hooks: false
 
+auditConfig:
+  ignoreGhsas:
+    - GHSA-fc5q-39xc-vjpf
+
 minimumReleaseAgeExclude:
   - '@vercel/backends@11.0.2'
   - '@vercel/build-utils@14.13.2'

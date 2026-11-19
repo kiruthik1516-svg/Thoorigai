@@ -5160,3 +5160,21 @@ body:has(.login-page) {
   color: var(--text-heading) !important;
   transform: translateY(-1px);
 }
+
+/* F-38: skip link, visible only when focused */
+.skip-link {
+  position: absolute;
+  left: 0.75rem;
+  top: -3rem;
+  z-index: 100;
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  background: var(--g1, #0e1c3d);
+  color: #fff;
+  font-size: 0.875rem;
+  font-weight: 600;
+  transition: top 0.15s ease;
+}
+.skip-link:focus {
+  top: 0.75rem;
+}
