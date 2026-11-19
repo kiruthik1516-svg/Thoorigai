@@ -208,5 +208,12 @@ export async function listCourseOptions(): Promise<Course[]> {
 export async function getCachedCourseOptions() {
   const profile = await getCurrentProfile()
   if (!['admin', 'staff'].includes(profile.role)) throw new ForbiddenError()
-  return readCachedCourseOptions()
+  const courses = await readCachedCourseOptions()
+  if (profile.role === 'admin') return courses
+  // F-28: staff only see the courses they are assigned to (RLS on course_trainers: own rows).
+  const supabase = await createClient()
+  const { data, error } = await supabase.from('course_trainers').select('course_id').eq('trainer_id', profile.id)
+  if (error) throw error
+  const assigned = new Set((data ?? []).map((row) => String(row.course_id)))
+  return courses.filter((course) => assigned.has(course.id))
 }

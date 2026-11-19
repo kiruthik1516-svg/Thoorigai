@@ -66,7 +66,11 @@ export async function createStudent(input: CreateStudentInput, idempotencyKey: s
     paymentDate,
     generateVerificationCode(10),
     idempotency,
-  )
+  ).catch((error: { code?: string; message?: string }) => {
+    // F-28: staff may only enrol into courses they are assigned to.
+    if (error?.code === '42501') throw new ForbiddenError(error.message || 'You are not allowed to enrol this student.')
+    throw error
+  })
   const student = {
     ...studentFromRow(rpcResult.student),
     id: String(rpcResult.student.id),
