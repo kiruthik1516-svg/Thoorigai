@@ -122,12 +122,10 @@ describe.skipIf(shouldSkip)('atomic money operations (local Supabase)', () => {
 
   it('rolls back student and payment rows if the invoice verification insert fails', async () => {
     const duplicateCode = `rollback-${crypto.randomUUID()}`
-    // Users cannot write verification records directly (RLS), so the clash is seeded with the service role.
-    const { error: seedError } = await adminClient.from('verifiable_documents').insert({
-      doc_type: 'invoice',
-      reference_id: crypto.randomUUID(),
-      verification_code: duplicateCode,
-    })
+    // Verification records are written only by the payment workflows, so the clashing code comes from a
+    // real first payment rather than a direct table insert.
+    const seedRegisterId = await createStudent(10_000, `test-${crypto.randomUUID()}`)
+    const { error: seedError } = await record(seedRegisterId, crypto.randomUUID(), 'f'.repeat(64), 1_000, duplicateCode)
     if (seedError) throw seedError
 
     const phone = `rollback-${crypto.randomUUID()}`
