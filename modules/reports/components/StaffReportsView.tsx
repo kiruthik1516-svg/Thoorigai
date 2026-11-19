@@ -18,6 +18,7 @@ import Link from 'next/link'
 import type { Student, Course, CourseCategory } from '@/lib/types'
 import type { AcademicReportData } from '@/modules/reports/service'
 import { KpiCard } from '@/components/ui/KpiCard'
+import { csvCell } from '@/lib/csv'
 
 function parseDate(dateString?: string): Date {
   if (!dateString) return new Date(0)
@@ -129,8 +130,8 @@ export function StaffReportsView({
     const rows = filteredAttendance.map((r) => [
       r.sessionDate,
       `#${r.studentRegisterId}`,
-      `"${r.studentName.replace(/"/g, '""')}"`,
-      `"${r.courseName.replace(/"/g, '""')}"`,
+      csvCell(r.studentName),
+      csvCell(r.courseName),
       r.status,
     ])
     const csvContent = [headers.join(','), ...rows.map((row) => row.join(','))].join('\n')
@@ -156,8 +157,8 @@ export function StaffReportsView({
       'Failed',
     ]
     const rows = filteredAssessments.map((a) => [
-      `"${a.title.replace(/"/g, '""')}"`,
-      `"${a.courseName.replace(/"/g, '""')}"`,
+      csvCell(a.title),
+      csvCell(a.courseName),
       a.assessmentDate,
       a.maxScore,
       a.avgScore,

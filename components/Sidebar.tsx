@@ -53,7 +53,7 @@ export function Sidebar({
 
   const handleSignOut = async () => {
     try {
-      await fetch('/api/auth/logout', { method: 'POST' })
+      await fetch('/api/auth/logout', { method: 'POST', headers: { 'Content-Type': 'application/json' } })
     } finally {
       router.push('/login')
       router.refresh()

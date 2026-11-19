@@ -30,6 +30,7 @@ import { CategoryBadge } from '@/components/CategoryBadge'
 import { AttendanceMarking } from './AttendanceMarking'
 import { KpiCard } from '@/components/ui/KpiCard'
 import type { CourseCategory } from '@/lib/types'
+import { csvCell } from '@/lib/csv'
 
 export interface CourseOption {
   id: string
@@ -209,8 +210,8 @@ export function AttendanceClientView({
     for (const r of courseReports) {
       const category = courseCategoryMap[r.course_id] || 'Unassigned'
       const row = [
-        `"${r.course_name.replace(/"/g, '""')}"`,
-        `"${category.replace(/"/g, '""')}"`,
+        csvCell(r.course_name),
+        csvCell(category),
         r.students,
         r.sessions,
         r.present_sessions,
@@ -245,8 +246,8 @@ export function AttendanceClientView({
     for (const s of studentReports) {
       const row = [
         s.register_id,
-        `"${s.student_name.replace(/"/g, '""')}"`,
-        `"${s.course_name.replace(/"/g, '""')}"`,
+        csvCell(s.student_name),
+        csvCell(s.course_name),
         s.sessions,
         s.present_sessions,
         Number(s.attendance_percent).toFixed(1),

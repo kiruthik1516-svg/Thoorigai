@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { safeNextPath } from '@/lib/auth/next-path'
 import { brand } from '@/lib/brand'
 import { supabaseBrowser } from '@/lib/supabase/browser'
 import { AuthShell } from '@/components/auth/AuthShell'
@@ -43,7 +44,7 @@ export default function LoginPage() {
           setError('This sign-in link is invalid, expired, or already used. Ask an administrator to send a new link.')
           return
         }
-        window.location.replace('/')
+        window.location.replace(safeNextPath(new URLSearchParams(window.location.search).get('next')))
       })
       .catch(() => {
         setError('Unable to complete sign-in. Ask an administrator to send a new link.')
@@ -78,7 +79,7 @@ export default function LoginPage() {
         throw new Error(message || 'Unable to sign in. Please verify your credentials.')
       }
 
-      router.push('/')
+      router.push(safeNextPath(new URLSearchParams(window.location.search).get('next')))
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Unable to sign in. Please try again.')
     } finally {

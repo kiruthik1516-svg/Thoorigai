@@ -37,6 +37,7 @@ import { GoogleFormsImportModal } from './GoogleFormsImportModal'
 import { ClassroomQRModal } from './ClassroomQRModal'
 import { KpiCard } from '@/components/ui/KpiCard'
 import { apiErrorMessage } from '@/lib/api/error-message'
+import { csvCell } from '@/lib/csv'
 
 export type Assessment = {
   id: string
@@ -465,11 +466,11 @@ export function Assessments({
     const headers = ['Student ID', 'Student Name', 'Score', 'Max Score', 'Percentage', 'Remarks', 'Graded At']
     const rows = assessmentResults.map((r) => [
       r.studentId,
-      `"${r.studentName.replace(/"/g, '""')}"`,
+      csvCell(r.studentName),
       r.score,
       maxScore,
       `${((r.score / maxScore) * 100).toFixed(1)}%`,
-      `"${(r.remarks || '').replace(/"/g, '""')}"`,
+      csvCell(r.remarks || ''),
       r.gradedAt,
     ])
     const csv = [headers.join(','), ...rows.map((row) => row.join(','))].join('\n')

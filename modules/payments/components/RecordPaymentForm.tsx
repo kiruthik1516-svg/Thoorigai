@@ -28,7 +28,7 @@ import { CategoryBadge } from '@/components/CategoryBadge'
 import { money } from '@/lib/formatters'
 import { PAYMENT_TYPES, type Course } from '@/lib/types'
 import { calculateGstForRupees, differenceRupees, percentageOfRupees } from '@/lib/money'
-import { apiErrorMessage } from '@/lib/api/error-message'
+import { useRecordPaymentMutation } from '@/lib/query/mutations'
 
 export interface StudentPaymentCandidate {
   id: string
@@ -79,6 +79,7 @@ export function RecordPaymentForm({ initialStudent = null, students, courses, gs
   const [paymentType, setPaymentType] = useState<string>('')
 
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const recordPayment = useRecordPaymentMutation(selectedStudent?.registerId)
   const [formError, setFormError] = useState<string | null>(null)
   const [showConfirmModal, setShowConfirmModal] = useState(false)
   // F-19: one idempotency key per payment, reused on every retry of the same details until the
@@ -185,30 +186,19 @@ export function RecordPaymentForm({ initialStudent = null, students, courses, gs
       }
       const idempotencyKey = idempotencyRef.current.key
 
-      const res = await fetch('/api/payments', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Idempotency-Key': idempotencyKey,
-        },
-        body: JSON.stringify(payload),
-      })
-
-      const json = await res.json()
-      if (!res.ok) {
-        throw new Error(apiErrorMessage(json, 'Failed to record payment.'))
-      }
+      // F-43: one payment path for the whole app (shared mutation + API client).
+      const result = await recordPayment.mutateAsync({ body: payload, idempotencyKey })
 
       idempotencyRef.current = null
-      const invoiceNum = json?.data?.invoice || ''
+      const invoiceNum = result.data?.invoice || ''
 
       // Seamless redirect directly to the student profile
       router.push(
         `/students/${selectedStudent.registerId}?paymentSuccess=true${invoiceNum ? `&invoice=${encodeURIComponent(invoiceNum)}` : ''}`,
       )
       router.refresh()
-    } catch (err: any) {
-      setFormError(err?.message || 'Failed to commit payment to ledger. Please try again.')
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : 'Failed to commit payment to ledger. Please try again.')
       setShowConfirmModal(false)
       setIsSubmitting(false)
     }

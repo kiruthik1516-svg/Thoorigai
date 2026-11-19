@@ -18,6 +18,10 @@ function unauthenticated(request: NextRequest, requestId: string) {
   }
   const loginUrl = request.nextUrl.clone()
   loginUrl.pathname = '/login'
+  loginUrl.search = ''
+  // F-45: return to the requested page after signing in (validated again on the login page).
+  const requested = `${request.nextUrl.pathname}${request.nextUrl.search}`
+  if (requested !== '/') loginUrl.searchParams.set('next', requested)
   return NextResponse.redirect(loginUrl)
 }
 

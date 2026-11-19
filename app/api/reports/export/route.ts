@@ -4,6 +4,7 @@ import { rolesFor } from '@/lib/auth/permissions'
 import { getDashboardSummaryForPeriod } from '@/modules/dashboard/service'
 import { paiseToRupees } from '@/lib/money'
 import { money } from '@/lib/formatters'
+import { toCsv } from '@/lib/csv'
 
 const date = z
   .string()
@@ -19,10 +20,6 @@ const querySchema = z
     path: ['startDate'],
   })
 
-function csvCell(value: string | number) {
-  return `"${String(value).replaceAll('"', '""')}"`
-}
-
 export const GET = withApi({ roles: rolesFor('reports', 'export'), query: querySchema }, async ({ query }) => {
   const summary = await getDashboardSummaryForPeriod(query.startDate, query.endDate)
   const rows: (string | number)[][] = [
@@ -35,14 +32,9 @@ export const GET = withApi({ roles: rolesFor('reports', 'export'), query: queryS
     ['Eligible students enrolled in range', summary.eligibleCount],
     ...summary.courseMix.map((item) => [`Course: ${item.course}`, item.studentCount]),
   ]
-  const encoder = new TextEncoder()
-  const stream = new ReadableStream<Uint8Array>({
-    start(controller) {
-      for (const row of rows) controller.enqueue(encoder.encode(`${row.map(csvCell).join(',')}\r\n`))
-      controller.close()
-    },
-  })
-  return new Response(stream, {
+  // F-44: a small summary built in one pass (docs called it "streamed"); every cell is neutralised.
+  const csv = `${toCsv(rows)}\r\n`
+  return new Response(csv, {
     headers: {
       'Content-Type': 'text/csv; charset=utf-8',
       'Content-Disposition': `attachment; filename="thoorigai-report-${query.startDate}-to-${query.endDate}.csv"`,

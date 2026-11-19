@@ -25,6 +25,7 @@ import { Card } from '@/components/ui/Card'
 import { PillButton } from '@/components/ui/PillButton'
 import { Tag } from '@/components/ui/Tag'
 import { apiErrorMessage } from '@/lib/api/error-message'
+import { SignOutEverywhere } from '@/components/SignOutEverywhere'
 
 type UserSettingsViewProps = {
   initialProfile: {
@@ -591,6 +592,7 @@ export function UserSettingsView({ initialProfile }: UserSettingsViewProps) {
           </PillButton>
         </div>
       </form>
+      <SignOutEverywhere />
     </div>
   )
 }

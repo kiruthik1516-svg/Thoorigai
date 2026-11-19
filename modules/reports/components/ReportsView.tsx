@@ -45,6 +45,7 @@ import { Button } from '@/components/ui/button'
 import type { Payment, Student, Course, CourseCategory } from '@/lib/types'
 import { money } from '@/lib/formatters'
 import { paiseToRupees, rupeesToPaise } from '@/lib/money'
+import { toCsv } from '@/lib/csv'
 import { PaymentsTable } from '@/components/shared/PaymentsTable'
 import { KpiCard } from '@/components/ui/KpiCard'
 
@@ -1204,7 +1205,7 @@ export function ReportsView({
         student.studentSource || (student as { leadSource?: string }).leadSource || '-',
       ]),
     ]
-    const csv = rows.map((row) => row.map((value) => '"' + value.replaceAll('"', '""') + '"').join(',')).join('\n')
+    const csv = toCsv(rows)
     const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }))
     const link = document.createElement('a')
     link.href = url

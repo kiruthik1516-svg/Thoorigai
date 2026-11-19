@@ -24,7 +24,7 @@ describe('environment validation', () => {
     const client = await import('./env')
     expect(client.clientEnv.NEXT_PUBLIC_APP_URL).toBe('https://app.example.test')
     const server = await import('./env.server')
-    expect(() => server.getServerEnv()).toThrow('SUPABASE_SERVICE_ROLE_KEY is required')
+    expect(() => server.getServerEnv()).toThrow('SUPABASE_SERVICE_ROLE_KEY: is required')
     vi.stubEnv('SUPABASE_SERVICE_ROLE_KEY', 'server-only-test-key')
     expect(server.getServerEnv()).toEqual({ SUPABASE_SERVICE_ROLE_KEY: 'server-only-test-key' })
   })
