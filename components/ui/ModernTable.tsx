@@ -41,7 +41,7 @@ export function ModernTable({
 
   return (
     <div
-      className={`w-full max-w-full overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--card)] shadow-xs transition-colors duration-200 ${className}`}
+      className={`w-full max-w-full overflow-x-auto rounded-xl border border-[var(--border)] bg-[var(--card)] shadow-xs transition-colors duration-200 ${className}`}
       style={{
         borderRadius: '12px',
         border: '1px solid var(--border)',

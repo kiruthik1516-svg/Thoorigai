@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef } from 'react'
+import { useDialog } from '@/lib/hooks/useDialog'
 import {
   X,
   Upload,
@@ -48,6 +49,9 @@ export function GoogleFormsImportModal({
   const existingMap = useMemo(() => {
     return new Map(existingResults.map((r) => [r.studentId, r.score]))
   }, [existingResults])
+
+  const dialogRef = useRef<HTMLDivElement>(null)
+  useDialog(isOpen, onClose, dialogRef)
 
   if (!isOpen) return null
 
@@ -148,7 +152,13 @@ export function GoogleFormsImportModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto animate-fade-in">
+    <div
+      ref={dialogRef}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Import Google Form responses"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto animate-fade-in"
+    >
       <div className="relative w-full max-w-3xl rounded-2xl bg-white shadow-2xl border border-slate-200 overflow-hidden my-8">
         {/* Header */}
         <div className="p-6 bg-gradient-to-r from-purple-700 via-indigo-700 to-indigo-800 text-white flex items-center justify-between">

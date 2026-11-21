@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import '@testing-library/jest-dom/vitest'
 
@@ -24,7 +24,8 @@ describe('AttendanceMarking', () => {
         roster={[{ registerId: 42, name: 'Asha', status: null }]}
       />,
     )
-    const present = screen.getByRole('button', { name: 'Present for Asha' })
+    // jsdom ignores CSS, so the phone cards and the desktop table both render: use the table here.
+    const present = within(screen.getByRole('table')).getByRole('button', { name: 'Present for Asha' })
     present.focus()
     await user.keyboard('{ArrowRight}')
     await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce())
@@ -52,8 +53,28 @@ describe('AttendanceMarking', () => {
     expect(statuses).toEqual(['Present', 'Present'])
 
     fetchMock.mockRejectedValueOnce(new Error('offline'))
-    await user.click(screen.getByRole('button', { name: 'Absent for Asha' }))
+    const table = within(screen.getByRole('table'))
+    await user.click(table.getByRole('button', { name: 'Absent for Asha' }))
     await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('offline'))
-    expect(screen.getByRole('button', { name: 'Present for Asha' })).toHaveAttribute('aria-pressed', 'true')
+    expect(table.getByRole('button', { name: 'Present for Asha' })).toHaveAttribute('aria-pressed', 'true')
+  })
+
+  it('lets phones mark a student from the roster cards', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true })
+    vi.stubGlobal('fetch', fetchMock)
+    const user = userEvent.setup()
+    render(
+      <AttendanceMarking
+        courseId="CRS-01"
+        sessionDate="2026-09-29"
+        roster={[{ registerId: 42, name: 'Asha', status: null }]}
+      />,
+    )
+    const cards = within(screen.getByRole('list', { name: 'Roster' }))
+    await user.click(cards.getByRole('button', { name: 'Absent for Asha' }))
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce())
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toMatchObject({ studentId: 42, status: 'Absent' })
+    expect(cards.getByRole('button', { name: 'Absent for Asha' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByText('1 of 1 marked')).toBeInTheDocument()
   })
 })

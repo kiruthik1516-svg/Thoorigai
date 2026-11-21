@@ -32,7 +32,7 @@ export default async function MaterialsPage() {
   }))
 
   return (
-    <main>
+    <div>
       <div className="page-heading">
         <div>
           <p className="eyebrow">LEARNING RESOURCES</p>
@@ -51,6 +51,6 @@ export default async function MaterialsPage() {
           </Link>
         </section>
       )}
-    </main>
+    </div>
   )
 }

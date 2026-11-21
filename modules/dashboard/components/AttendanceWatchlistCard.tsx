@@ -1,6 +1,7 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useCallback, useRef, useState } from 'react'
+import { useDialog } from '@/lib/hooks/useDialog'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { AlertTriangle, ArrowRight, ChevronDown, Phone, X } from 'lucide-react'
@@ -31,16 +32,10 @@ export function AttendanceWatchlistCard({
   const router = useRouter()
   const [isModalOpen, setIsModalOpen] = useState(false)
 
-  // Close modal on Escape key press
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setIsModalOpen(false)
-    }
-    if (isModalOpen) {
-      window.addEventListener('keydown', handleKeyDown)
-      return () => window.removeEventListener('keydown', handleKeyDown)
-    }
-  }, [isModalOpen])
+  // Escape, the phone's Back button and focus handling (mobile audit).
+  const modalRef = useRef<HTMLDivElement>(null)
+  const closeModal = useCallback(() => setIsModalOpen(false), [])
+  useDialog(isModalOpen, closeModal, modalRef)
 
   const hasMoreThanTwo = students.length > 2
   const displayedStudents = hasMoreThanTwo ? students.slice(0, 2) : students
@@ -195,6 +190,7 @@ export function AttendanceWatchlistCard({
       {/* Popup / Modal Dialog for Full Watchlist */}
       {isModalOpen && (
         <div
+          ref={modalRef}
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200"
           role="dialog"
           aria-modal="true"

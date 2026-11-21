@@ -104,7 +104,7 @@ export default function LoginPage() {
         </div>
 
         {/* Login Form */}
-        <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5" aria-labelledby="login-title">
+        <form method="post" onSubmit={handleSubmit} className="space-y-4 sm:space-y-5" aria-labelledby="login-title">
           {/* Email Field */}
           <div>
             <label htmlFor="email" className="block text-xs font-bold uppercase tracking-wider text-slate-800 mb-1.5">

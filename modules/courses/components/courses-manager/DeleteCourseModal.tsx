@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
+import { useDialog } from '@/lib/hooks/useDialog'
 import { AlertCircle, AlertTriangle, CheckCircle2, ShieldAlert, X } from 'lucide-react'
 import type { Course } from '@/lib/types'
 import { Button } from '@/components/ui/button'
@@ -18,6 +19,8 @@ export function DeleteCourseModal({
   onClose: () => void
   onDeleted: () => void
 }) {
+  const dialogRef = useRef<HTMLDivElement>(null)
+  useDialog(true, onClose, dialogRef)
   const [typedName, setTypedName] = useState('')
   const [error, setError] = useState('')
   const [deleting, setDeleting] = useState(false)
@@ -40,7 +43,13 @@ export function DeleteCourseModal({
   }
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 z-60 overflow-y-auto animate-in fade-in duration-150">
+    <div
+      ref={dialogRef}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Delete course"
+      className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 z-60 overflow-y-auto animate-in fade-in duration-150"
+    >
       <div className="bg-[var(--card)] rounded-[26px] shadow-2xl border border-rose-500/20 w-full max-w-md my-auto max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-150">
         <div className="bg-rose-500/10 border-b border-rose-500/20 px-6 py-4 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">

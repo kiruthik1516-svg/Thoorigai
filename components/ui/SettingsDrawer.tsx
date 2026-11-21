@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useEffect, useState, useRef } from 'react'
+import { useDialog } from '@/lib/hooks/useDialog'
 import { X, Sun, Moon, RotateCcw, Check, Sparkles, Layers, Compass, Flame } from 'lucide-react'
 import { useTheme } from '@/lib/ThemeContext'
 import {
@@ -83,16 +84,9 @@ export function SettingsDrawer() {
     themeRef.current = theme
   }, [theme])
 
-  // ESC key handler
-  useEffect(() => {
-    const handleKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isSettingsOpen) {
-        closeSettings()
-      }
-    }
-    window.addEventListener('keydown', handleKey)
-    return () => window.removeEventListener('keydown', handleKey)
-  }, [isSettingsOpen, closeSettings])
+  // Escape, the phone's Back button and focus handling (mobile audit).
+  const drawerRef = useRef<HTMLDivElement>(null)
+  useDialog(isSettingsOpen, closeSettings, drawerRef)
 
   if (!isSettingsOpen) return null
 
@@ -249,6 +243,7 @@ export function SettingsDrawer() {
 
   return (
     <div
+      ref={drawerRef}
       className="fixed inset-0 z-50 flex justify-end"
       role="dialog"
       aria-modal="true"

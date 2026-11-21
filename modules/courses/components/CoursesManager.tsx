@@ -113,9 +113,9 @@ export function CoursesManager({
               {gstRate > 0 ? `${gstRate}% GST applicable` : 'GST disabled'})
             </p>
           </div>
-          <div className="flex items-center gap-3">
-            <form action="/courses" method="get" className="flex items-center gap-2">
-              <div className="relative">
+          <div className="flex flex-wrap items-center gap-3 min-w-0">
+            <form action="/courses" method="get" className="flex flex-1 sm:flex-none items-center gap-2 min-w-0">
+              <div className="relative min-w-0 flex-1 sm:flex-none">
                 <Search
                   size={15}
                   className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--mute)] pointer-events-none"
@@ -127,7 +127,7 @@ export function CoursesManager({
                   placeholder="Search courses..."
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  className="w-48 sm:w-60 pl-9 pr-8 py-2 rounded-full border border-[var(--border)] bg-[var(--panel)] text-xs font-medium text-[var(--text)] placeholder:text-[var(--mute)] focus:outline-none focus:ring-1 focus:ring-[var(--g1)] shadow-2xs"
+                  className="w-full sm:w-60 pl-9 pr-8 py-2 rounded-full border border-[var(--border)] bg-[var(--panel)] text-xs font-medium text-[var(--text)] placeholder:text-[var(--mute)] focus:outline-none focus:ring-1 focus:ring-[var(--g1)] shadow-2xs"
                 />
                 {query && (
                   <button
@@ -224,7 +224,7 @@ export function CoursesManager({
           <div className="flex items-center gap-2">
             <Link
               aria-disabled={page <= 1}
-              className={`px-4 py-1.5 rounded-full font-bold border border-[var(--border)] bg-[var(--card)] text-[var(--text)] transition-colors ${
+              className={`pager-link px-4 py-1.5 rounded-full font-bold border border-[var(--border)] bg-[var(--card)] text-[var(--text)] transition-colors ${
                 page <= 1 ? 'pointer-events-none opacity-40' : 'hover:bg-[var(--panel)]'
               }`}
               href={coursesUrl({ ...listParams, page: Math.max(1, page - 1) })}
@@ -233,7 +233,7 @@ export function CoursesManager({
             </Link>
             <Link
               aria-disabled={page >= Math.ceil(totalCount / pageSize)}
-              className={`px-4 py-1.5 rounded-full font-bold border border-[var(--border)] bg-[var(--card)] text-[var(--text)] transition-colors ${
+              className={`pager-link px-4 py-1.5 rounded-full font-bold border border-[var(--border)] bg-[var(--card)] text-[var(--text)] transition-colors ${
                 page >= Math.ceil(totalCount / pageSize) ? 'pointer-events-none opacity-40' : 'hover:bg-[var(--panel)]'
               }`}
               href={coursesUrl({ ...listParams, page: page + 1 })}

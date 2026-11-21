@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useMemo, useRef } from 'react'
+import { useCallback, useState, useMemo, useRef } from 'react'
+import { useDialog } from '@/lib/hooks/useDialog'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
@@ -82,6 +83,9 @@ export function RecordPaymentForm({ initialStudent = null, students, courses, gs
   const recordPayment = useRecordPaymentMutation(selectedStudent?.registerId)
   const [formError, setFormError] = useState<string | null>(null)
   const [showConfirmModal, setShowConfirmModal] = useState(false)
+  const confirmRef = useRef<HTMLDivElement>(null)
+  const closeConfirm = useCallback(() => setShowConfirmModal(false), [])
+  useDialog(showConfirmModal && Boolean(selectedStudent), closeConfirm, confirmRef)
   // F-19: one idempotency key per payment, reused on every retry of the same details until the
   // server confirms it. Changing the details starts a new payment with a new key.
   const idempotencyRef = useRef<{ key: string; signature: string } | null>(null)
@@ -811,6 +815,7 @@ export function RecordPaymentForm({ initialStudent = null, students, courses, gs
       {/* CONFIRMATION REVIEW MODAL */}
       {showConfirmModal && selectedStudent && (
         <div
+          ref={confirmRef}
           role="dialog"
           aria-modal="true"
           aria-labelledby="confirm-modal-title"

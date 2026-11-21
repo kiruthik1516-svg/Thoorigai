@@ -72,6 +72,32 @@ export function GradingStudio({
     document.body.removeChild(link)
   }
 
+  const scoreRow = (student: StudentOption) => {
+    const existing = results.find((r) => r.studentId === student.register_id)
+    const maxScore = assessment.maxScore || 100
+    const currentScoreStr = bulkScores[String(student.register_id)] ?? (existing ? String(existing.score) : '')
+    const numericScore = parseFloat(currentScoreStr)
+    const percentage = !isNaN(numericScore) && maxScore > 0 ? ((numericScore / maxScore) * 100).toFixed(1) : null
+    return { existing, currentScoreStr, percentage }
+  }
+
+  const percentageBadge = (percentage: string | null) =>
+    percentage !== null ? (
+      <span
+        className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ${
+          Number(percentage) >= 70
+            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+            : Number(percentage) >= 50
+              ? 'bg-amber-50 text-amber-700 border border-amber-200'
+              : 'bg-rose-50 text-rose-700 border border-rose-200'
+        }`}
+      >
+        {percentage}%
+      </span>
+    ) : (
+      <span className="text-xs text-slate-500 italic">Pending</span>
+    )
+
   return (
     <div className="space-y-6">
       {/* Assessment Hero Card */}
@@ -176,10 +202,10 @@ export function GradingStudio({
       )}
 
       {/* Student Roster & Live Scoring Table */}
-      <section className="panel p-6 sm:p-7 shadow-xs border border-slate-200/90 space-y-5">
+      <section className="panel p-4 sm:p-7 shadow-xs border border-slate-200/90 space-y-5">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-3 border-b border-slate-100">
-          <div className="flex items-center gap-3">
-            <div className="relative w-64">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 min-w-0">
+            <div className="relative w-full sm:w-64">
               <Search
                 size={14}
                 className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
@@ -194,7 +220,7 @@ export function GradingStudio({
             </div>
 
             {/* Filter Chips */}
-            <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl text-xs font-semibold">
+            <div className="flex flex-wrap items-center gap-1 bg-slate-100 p-1 rounded-xl text-xs font-semibold self-start">
               <button
                 type="button"
                 onClick={() => setFilter('all')}
@@ -249,8 +275,83 @@ export function GradingStudio({
           </div>
         </div>
 
+        {/* Phones: one card per student with the score field in view (mobile audit). */}
+        <ul className="md:hidden space-y-3" aria-label="Scores">
+          {roster.map((student) => {
+            const { existing, currentScoreStr, percentage } = scoreRow(student)
+            return (
+              <li key={student.register_id} className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <Link
+                      href={`/students/${student.register_id}`}
+                      className="block font-semibold text-slate-900 text-base leading-snug break-words hover:text-indigo-600"
+                    >
+                      {student.name}
+                    </Link>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      #{student.register_id}
+                      {existing ? ` · Graded ${formatDate(existing.gradedAt)}` : ''}
+                    </p>
+                  </div>
+                  {existing && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label={`Delete result for ${student.name}`}
+                      onClick={() => onDeleteResult(existing.id)}
+                      className="touch-target text-slate-500 hover:text-rose-600 cursor-pointer shrink-0"
+                    >
+                      <Trash2 size={16} />
+                    </Button>
+                  )}
+                </div>
+                <div className="mt-3 flex items-center gap-2">
+                  <label className="sr-only" htmlFor={`score-m-${student.register_id}`}>
+                    Score for {student.name}
+                  </label>
+                  <Input
+                    id={`score-m-${student.register_id}`}
+                    type="number"
+                    inputMode="decimal"
+                    min={0}
+                    max={assessment.maxScore}
+                    step="0.01"
+                    placeholder="Score"
+                    value={currentScoreStr}
+                    onChange={(e) => onScoreChange(student.register_id, e.target.value)}
+                    className="w-28 text-center font-bold min-h-12 rounded-xl"
+                  />
+                  <span className="text-sm text-slate-500">/ {assessment.maxScore}</span>
+                  <span className="ml-auto">{percentageBadge(percentage)}</span>
+                </div>
+                {existing?.remarks && <p className="mt-2 text-xs text-slate-600">{existing.remarks}</p>}
+              </li>
+            )
+          })}
+          {roster.length === 0 && (
+            <li className="text-center py-8 text-slate-500">No enrolled students match current query.</li>
+          )}
+        </ul>
+
+        {roster.length > 0 && (
+          <div className="md:hidden mobile-action-bar rounded-2xl border border-[var(--border)] bg-[var(--card)]/95 backdrop-blur p-3 shadow-lg flex items-center justify-between gap-3">
+            <span className="text-sm font-semibold text-slate-700">
+              {results.length} of {students.length} graded
+            </span>
+            <Button
+              type="button"
+              onClick={() => void onSaveScores()}
+              disabled={saving}
+              className="btn-primary min-h-11 px-5 text-sm font-semibold cursor-pointer"
+            >
+              {saving ? 'Saving...' : 'Save scores'}
+            </Button>
+          </div>
+        )}
+
         {/* Table */}
-        <div className="overflow-x-auto rounded-xl border border-[var(--border)] shadow-xs bg-[var(--card)]">
+        <div className="hidden md:block overflow-x-auto rounded-xl border border-[var(--border)] shadow-xs bg-[var(--card)]">
           <table className="w-full min-w-[720px] text-left text-xs sm:text-sm">
             <thead className="bg-slate-50/90 border-b border-slate-200">
               <tr>
@@ -282,13 +383,7 @@ export function GradingStudio({
             </thead>
             <tbody className="divide-y divide-slate-100">
               {roster.map((student) => {
-                const existing = results.find((r) => r.studentId === student.register_id)
-                const maxScore = assessment.maxScore || 100
-                const currentScoreStr =
-                  bulkScores[String(student.register_id)] ?? (existing ? String(existing.score) : '')
-                const numericScore = parseFloat(currentScoreStr)
-                const percentage =
-                  !isNaN(numericScore) && maxScore > 0 ? ((numericScore / maxScore) * 100).toFixed(1) : null
+                const { existing, currentScoreStr, percentage } = scoreRow(student)
 
                 return (
                   <tr key={student.register_id} className="hover:bg-slate-50/80 transition-colors">
@@ -320,6 +415,7 @@ export function GradingStudio({
                       <div className="inline-flex items-center gap-1.5">
                         <Input
                           type="number"
+                          inputMode="decimal"
                           min={0}
                           max={assessment.maxScore}
                           step="0.01"
@@ -332,23 +428,7 @@ export function GradingStudio({
                       </div>
                     </td>
 
-                    <td className="p-3.5 text-center">
-                      {percentage !== null ? (
-                        <span
-                          className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ${
-                            Number(percentage) >= 70
-                              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                              : Number(percentage) >= 50
-                                ? 'bg-amber-50 text-amber-700 border border-amber-200'
-                                : 'bg-rose-50 text-rose-700 border border-rose-200'
-                          }`}
-                        >
-                          {percentage}%
-                        </span>
-                      ) : (
-                        <span className="text-xs text-slate-500 italic">Pending</span>
-                      )}
-                    </td>
+                    <td className="p-3.5 text-center">{percentageBadge(percentage)}</td>
 
                     <td className="p-3.5">
                       <span className="text-xs text-slate-600 line-clamp-1">{existing?.remarks || '-'}</span>

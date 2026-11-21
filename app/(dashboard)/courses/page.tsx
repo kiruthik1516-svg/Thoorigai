@@ -10,9 +10,11 @@ export default async function CoursesPage({ searchParams }: PageProps<'/courses'
   const rawParams = await searchParams
   const categoryId = typeof rawParams.categoryId === 'string' && rawParams.categoryId ? rawParams.categoryId : undefined
   const query = parseListQuery(rawParams)
+  // Courses read naturally A→Z; the shared list default (newest first) only applies when asked for.
+  const direction = rawParams.direction === 'desc' ? 'desc' : 'asc'
 
   const [result, gst, categories] = await Promise.all([
-    listCoursePage({ ...query, search: query.search, categoryId }),
+    listCoursePage({ ...query, direction, search: query.search, categoryId }),
     getCachedGstCalculationSettings(),
     listCourseCategories(),
   ])
@@ -32,7 +34,7 @@ export default async function CoursesPage({ searchParams }: PageProps<'/courses'
       canDelete={can(profile.role, 'courses', 'delete')}
       canManageCategories={can(profile.role, 'courses', 'manage')}
       sort={query.sort || 'name'}
-      direction={query.direction}
+      direction={direction}
     />
   )
 }

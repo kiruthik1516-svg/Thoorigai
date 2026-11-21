@@ -1,6 +1,7 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
+import { useDialog } from '@/lib/hooks/useDialog'
 import Link from 'next/link'
 import { AlertCircle, ArrowUpRight, BookOpen, Trash2, X } from 'lucide-react'
 import type { Course, CourseCategory } from '@/lib/types'
@@ -32,6 +33,8 @@ export function CourseFormModal({
   onClose: () => void
   onRequestDelete: (course: Course) => void
 }) {
+  const dialogRef = useRef<HTMLDivElement>(null)
+  useDialog(true, onClose, dialogRef)
   const [form, setForm] = useState<CourseForm>(() =>
     editingCourse ? courseFormFromCourse(editingCourse) : newCourseForm(categories, selectedCategoryId),
   )
@@ -78,7 +81,13 @@ export function CourseFormModal({
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 z-50 overflow-y-auto">
+    <div
+      ref={dialogRef}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Course details"
+      className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 z-50 overflow-y-auto"
+    >
       <div className="bg-[var(--card)] rounded-[26px] shadow-2xl border border-[var(--border)] w-full max-w-lg my-auto max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
         <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border)] shrink-0">
           <div>

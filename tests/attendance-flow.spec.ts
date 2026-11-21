@@ -10,8 +10,9 @@ test('staff can load a roster and mark a student present', async ({ page }) => {
   await course.selectOption({ index: 1 })
   await page.locator('input[name="date"]').fill(new Date().toISOString().slice(0, 10))
   await page.getByRole('button', { name: 'Load roster' }).click()
+  // Phones show a card per student and wider screens a table row; both carry data-roster-student.
   const student = page
-    .getByRole('row')
+    .locator('[data-roster-student]:visible')
     .filter({ has: page.getByRole('button', { name: /^Present for / }) })
     .first()
   await expect(student).toBeVisible()

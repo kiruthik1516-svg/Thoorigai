@@ -152,7 +152,11 @@ export default function PendingApprovalPage() {
           </div>
 
           {showRedeem && (
-            <form onSubmit={handleRedeem} className="mt-4 space-y-3.5 pt-3 border-t border-emerald-200/80">
+            <form
+              method="post"
+              onSubmit={handleRedeem}
+              className="mt-4 space-y-3.5 pt-3 border-t border-emerald-200/80"
+            >
               <p className="text-xs text-slate-700 leading-relaxed font-normal">
                 Enter your registered email, password, and the invite code received from your administrator to skip the
                 queue.

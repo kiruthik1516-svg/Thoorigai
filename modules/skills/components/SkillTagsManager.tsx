@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef } from 'react'
+import { useDialog } from '@/lib/hooks/useDialog'
 import {
   Plus,
   Trash2,
@@ -171,6 +172,8 @@ export function SkillTagsManager({
   isModal?: boolean
   onClose?: () => void
 }) {
+  const modalRef = useRef<HTMLDivElement>(null)
+  useDialog(isModal && Boolean(onClose), () => onClose?.(), modalRef)
   const [skills, setSkills] = useState<SkillTag[]>(initialSkills)
   const [newSkillName, setNewSkillName] = useState('')
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -597,7 +600,10 @@ export function SkillTagsManager({
                             onChange={(e) => setEditingName(e.target.value)}
                             onKeyDown={(e) => {
                               if (e.key === 'Enter') handleSaveEdit(skill.id)
-                              if (e.key === 'Escape') handleCancelEdit()
+                              if (e.key === 'Escape') {
+                                e.stopPropagation()
+                                handleCancelEdit()
+                              }
                             }}
                             autoFocus
                             disabled={loading}
@@ -714,7 +720,10 @@ export function SkillTagsManager({
                             onChange={(e) => setEditingName(e.target.value)}
                             onKeyDown={(e) => {
                               if (e.key === 'Enter') handleSaveEdit(skill.id)
-                              if (e.key === 'Escape') handleCancelEdit()
+                              if (e.key === 'Escape') {
+                                e.stopPropagation()
+                                handleCancelEdit()
+                              }
                             }}
                             autoFocus
                             disabled={loading}
@@ -823,7 +832,13 @@ export function SkillTagsManager({
 
   if (isModal) {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/40 backdrop-blur-xs animate-in fade-in duration-200">
+      <div
+        ref={modalRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Skill tags"
+        className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/40 backdrop-blur-xs animate-in fade-in duration-200"
+      >
         <div className="w-full max-w-2xl bg-[var(--card)] rounded-[26px] shadow-2xl border border-[var(--border)] overflow-hidden max-h-[90vh] flex flex-col">
           <div className="p-4 px-6 border-b border-[var(--border)] flex items-center justify-between bg-[var(--panel)]">
             <div className="flex items-center gap-2">

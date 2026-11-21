@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import { useDialog } from '@/lib/hooks/useDialog'
 import { X, Copy, Check, ExternalLink, QrCode, Smartphone } from 'lucide-react'
 import QRCode from 'qrcode'
 
@@ -32,6 +33,9 @@ export function ClassroomQRModal({ isOpen, onClose, formUrl, title, courseName }
     }
   }, [formUrl])
 
+  const dialogRef = useRef<HTMLDivElement>(null)
+  useDialog(isOpen && Boolean(formUrl), onClose, dialogRef)
+
   if (!isOpen || !formUrl) return null
 
   const handleCopy = async () => {
@@ -45,7 +49,13 @@ export function ClassroomQRModal({ isOpen, onClose, formUrl, title, courseName }
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/65 backdrop-blur-xs animate-fade-in">
+    <div
+      ref={dialogRef}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Classroom QR code"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/65 backdrop-blur-xs animate-fade-in"
+    >
       <div className="relative w-full max-w-md rounded-3xl bg-white shadow-2xl border border-slate-200 overflow-hidden text-center p-6 space-y-5">
         {/* Close Button */}
         <button

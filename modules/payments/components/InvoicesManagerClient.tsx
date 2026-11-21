@@ -516,7 +516,7 @@ export function InvoicesManagerClient({
               pageSize: String(pageSize),
             })}`}
             aria-disabled={page <= 1}
-            className={`inline-flex items-center gap-1 px-3.5 py-1.5 rounded-full border border-[var(--border)] bg-[var(--panel)] font-bold transition-colors ${
+            className={`pager-link inline-flex items-center gap-1 px-3.5 py-1.5 rounded-full border border-[var(--border)] bg-[var(--panel)] font-bold transition-colors ${
               page <= 1 ? 'pointer-events-none opacity-40' : 'hover:bg-[var(--card)] text-[var(--text)]'
             }`}
           >
@@ -534,7 +534,7 @@ export function InvoicesManagerClient({
               pageSize: String(pageSize),
             })}`}
             aria-disabled={page >= totalPages}
-            className={`inline-flex items-center gap-1 px-3.5 py-1.5 rounded-full border border-[var(--border)] bg-[var(--panel)] font-bold transition-colors ${
+            className={`pager-link inline-flex items-center gap-1 px-3.5 py-1.5 rounded-full border border-[var(--border)] bg-[var(--panel)] font-bold transition-colors ${
               page >= totalPages ? 'pointer-events-none opacity-40' : 'hover:bg-[var(--card)] text-[var(--text)]'
             }`}
           >

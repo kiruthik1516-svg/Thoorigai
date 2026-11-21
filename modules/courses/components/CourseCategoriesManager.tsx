@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
+import { useDialog } from '@/lib/hooks/useDialog'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
@@ -63,11 +64,13 @@ export function CourseCategoriesManager({
     setModalOpen(true)
   }
 
+  const modalRef = useRef<HTMLDivElement>(null)
   const closeModal = () => {
     setModalOpen(false)
     setEditingCategory(null)
     setFormError('')
   }
+  useDialog(modalOpen, closeModal, modalRef)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -229,7 +232,7 @@ export function CourseCategoriesManager({
                   </span>
                   <Link
                     href={`/courses?categoryId=${encodeURIComponent(cat.id)}`}
-                    className="text-[var(--g1)] font-semibold inline-flex items-center gap-1 hover:underline"
+                    className="tap-link text-[var(--g1)] font-semibold inline-flex items-center gap-1 hover:underline"
                   >
                     View courses
                     <ArrowRight size={12} />
@@ -254,7 +257,13 @@ export function CourseCategoriesManager({
 
       {/* Add / Edit Category Modal */}
       {modalOpen && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+        <div
+          ref={modalRef}
+          role="dialog"
+          aria-modal="true"
+          aria-label={editingCategory ? 'Edit category' : 'New category'}
+          className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-50"
+        >
           <div className="bg-[var(--card)] rounded-[26px] shadow-2xl border border-[var(--border)] w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border)] bg-[var(--panel)]">
               <div>

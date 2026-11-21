@@ -20,11 +20,13 @@ import {
   Tags,
   UserCog,
   LogOut,
+  Palette,
   Sparkles,
 } from 'lucide-react'
 import { brand } from '@/lib/brand'
 import { can, type Resource } from '@/lib/auth/permissions'
 import type { Role } from '@/lib/types'
+import { useTheme } from '@/lib/ThemeContext'
 
 const nav: { label: string; href: string; Icon: typeof LayoutDashboard; resource: Resource }[] = [
   { label: 'Dashboard', href: '/', Icon: LayoutDashboard, resource: 'reports' },
@@ -50,6 +52,7 @@ export function Sidebar({
 }) {
   const pathname = usePathname()
   const router = useRouter()
+  const { openSettings } = useTheme()
 
   const handleSignOut = async () => {
     try {
@@ -194,6 +197,20 @@ export function Sidebar({
             <UserCog size={16} className="shrink-0" />
             {!collapsed && <span className="flex-1 text-left truncate">User settings</span>}
           </Link>
+
+          {/* The header's theme button is hidden on phones, so the drawer offers it too. */}
+          <button
+            type="button"
+            onClick={() => {
+              onNavigate?.()
+              openSettings()
+            }}
+            className="nav-item cursor-pointer text-left w-full"
+            title="Theme & appearance"
+          >
+            <Palette size={16} className="shrink-0" />
+            {!collapsed && <span className="flex-1 text-left truncate">Theme &amp; appearance</span>}
+          </button>
 
           <button
             type="button"

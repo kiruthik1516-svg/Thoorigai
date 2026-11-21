@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useMemo } from 'react'
+import { useMediaQuery } from '@/lib/hooks/useMediaQuery'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Plus, Search, ChevronLeft, ChevronRight, X, Filter, LayoutGrid, List as ListIcon } from 'lucide-react'
@@ -40,7 +41,10 @@ export function StudentsView({
   const [searchTerm, setSearchTerm] = useState(initialSearch)
   const [categoryFilter, setCategoryFilter] = useState(selectedCategoryId)
   const [courseFilter, setCourseFilter] = useState(selectedCourse)
-  const [viewMode, setViewMode] = useState<'table' | 'grid'>('table')
+  // Phones open in card view (mobile audit); an explicit choice on the toggle always wins.
+  const isPhone = useMediaQuery('(max-width: 767px)')
+  const [chosenView, setViewMode] = useState<'table' | 'grid' | null>(null)
+  const viewMode = chosenView ?? (isPhone ? 'grid' : 'table')
 
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize))
   const fromIndex = totalCount === 0 ? 0 : (page - 1) * pageSize + 1
@@ -243,6 +247,7 @@ export function StudentsView({
               <button
                 type="button"
                 onClick={() => setViewMode('table')}
+                aria-pressed={viewMode === 'table'}
                 className={`p-1.5 px-2.5 rounded-full text-xs font-semibold transition-all cursor-pointer flex items-center gap-1 ${
                   viewMode === 'table'
                     ? 'bg-[var(--g1)] text-white shadow-xs'
@@ -257,6 +262,7 @@ export function StudentsView({
               <button
                 type="button"
                 onClick={() => setViewMode('grid')}
+                aria-pressed={viewMode === 'grid'}
                 className={`p-1.5 px-2.5 rounded-full text-xs font-semibold transition-all cursor-pointer flex items-center gap-1 ${
                   viewMode === 'grid'
                     ? 'bg-[var(--g1)] text-white shadow-xs'
@@ -578,7 +584,7 @@ export function StudentsView({
               size="icon-xs"
               onClick={() => handlePageChange(page - 1)}
               disabled={page <= 1}
-              className="text-slate-600 hover:text-slate-900 disabled:opacity-40"
+              className="pager-link text-slate-600 hover:text-slate-900 disabled:opacity-40"
               aria-label="Previous page"
             >
               <ChevronLeft size={16} />
@@ -591,7 +597,7 @@ export function StudentsView({
               size="icon-xs"
               onClick={() => handlePageChange(page + 1)}
               disabled={page >= totalPages}
-              className="text-slate-600 hover:text-slate-900 disabled:opacity-40"
+              className="pager-link text-slate-600 hover:text-slate-900 disabled:opacity-40"
               aria-label="Next page"
             >
               <ChevronRight size={16} />

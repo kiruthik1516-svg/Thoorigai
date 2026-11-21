@@ -150,6 +150,39 @@ export function AttendanceMarking({
     }
   }
 
+  const statusPill = (row: Student) =>
+    row.status ? (
+      <span
+        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md font-medium text-[11px] ${
+          row.status === 'Present'
+            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/80'
+            : row.status === 'Absent'
+              ? 'bg-rose-50 text-rose-700 border border-rose-200/80'
+              : 'bg-sky-50 text-sky-700 border border-sky-200/80'
+        }`}
+      >
+        <span
+          className={`w-1.5 h-1.5 rounded-full ${
+            row.status === 'Present' ? 'bg-emerald-500' : row.status === 'Absent' ? 'bg-rose-500' : 'bg-sky-500'
+          }`}
+        />
+        {row.status === 'Excused' ? 'Exempt' : row.status}
+      </span>
+    ) : (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md font-medium text-[11px] bg-slate-100 text-slate-500 border border-slate-200">
+        <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
+        Not marked yet
+      </span>
+    )
+
+  const savingBadge = (row: Student) =>
+    saving.includes(row.registerId) && (
+      <span className="inline-flex items-center gap-1 text-[11px] text-indigo-600 font-medium">
+        <span className="w-2.5 h-2.5 rounded-full border-2 border-indigo-600 border-t-transparent animate-spin" />
+        Saving…
+      </span>
+    )
+
   return (
     <div className="mt-6 pt-6 border-t border-slate-200/80 space-y-6">
       {/* 1. Active Session Header & Progress Overview */}
@@ -190,7 +223,7 @@ export function AttendanceMarking({
           </div>
 
           {/* Progress Indicator */}
-          <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-2xs min-w-[260px] lg:max-w-xs space-y-2">
+          <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-2xs w-full lg:w-auto lg:min-w-[260px] lg:max-w-xs space-y-2">
             <div className="flex items-center justify-between text-xs">
               <span className="font-semibold text-slate-700">Marking Progress</span>
               <span className="font-bold text-slate-900">
@@ -427,159 +460,197 @@ export function AttendanceMarking({
           </div>
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-[var(--border)] shadow-xs bg-[var(--card)]">
-          <table className="w-full min-w-[680px] text-left">
-            <thead className="bg-slate-50/90 border-b border-slate-200">
-              <tr>
-                <th scope="col" className="p-4 font-bold text-slate-700 text-xs uppercase tracking-wider w-[42%]">
-                  Student Information
-                </th>
-                {statuses.map((status) => (
-                  <th
-                    key={status}
-                    scope="col"
-                    className="p-3 text-center font-bold text-slate-700 text-xs uppercase tracking-wider"
-                  >
-                    {status}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {filteredRows.map((row, index) => (
-                <tr key={row.registerId} className="hover:bg-slate-50/80 transition-colors">
-                  <th scope="row" className="p-4 font-normal">
-                    <div className="flex items-center gap-3">
-                      {/* Avatar Initials Badge */}
-                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500/10 to-indigo-600/20 text-indigo-700 font-bold text-xs flex items-center justify-center shrink-0 border border-indigo-200/60 shadow-2xs">
-                        {getInitials(row.name)}
-                      </div>
-
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <Link
-                            href={`/students/${row.registerId}`}
-                            className="font-semibold text-slate-900 hover:text-indigo-600 text-sm sm:text-base hover:underline truncate"
-                            title={`View profile for ${row.name}`}
-                          >
-                            {row.name}
-                          </Link>
-                          <span className="font-mono text-xs text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200/70">
-                            #{row.registerId}
-                          </span>
-                          {saving.includes(row.registerId) && (
-                            <span className="inline-flex items-center gap-1 text-[11px] text-indigo-600 font-medium">
-                              <span className="w-2.5 h-2.5 rounded-full border-2 border-indigo-600 border-t-transparent animate-spin" />
-                              Saving…
-                            </span>
-                          )}
-                        </div>
-
-                        {/* Status hint pill for immediate row scanning */}
-                        <div className="mt-1 flex items-center gap-2">
-                          {row.status ? (
-                            <span
-                              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md font-medium text-[11px] ${
-                                row.status === 'Present'
-                                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/80'
-                                  : row.status === 'Absent'
-                                    ? 'bg-rose-50 text-rose-700 border border-rose-200/80'
-                                    : 'bg-sky-50 text-sky-700 border border-sky-200/80'
-                              }`}
-                            >
-                              <span
-                                className={`w-1.5 h-1.5 rounded-full ${
-                                  row.status === 'Present'
-                                    ? 'bg-emerald-500'
-                                    : row.status === 'Absent'
-                                      ? 'bg-rose-500'
-                                      : 'bg-sky-500'
-                                }`}
-                              />
-                              {row.status === 'Excused' ? 'Exempt' : row.status}
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md font-medium text-[11px] bg-slate-100 text-slate-500 border border-slate-200">
-                              <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
-                              Not marked yet
-                            </span>
-                          )}
-                        </div>
-                      </div>
+        <>
+          {/* Phones: one card per student with full-width status buttons (mobile audit). */}
+          <ul className="md:hidden space-y-3" aria-label="Roster">
+            {filteredRows.map((row) => (
+              <li
+                key={row.registerId}
+                data-roster-student
+                className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-4 shadow-2xs"
+              >
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500/10 to-indigo-600/20 text-indigo-700 font-bold text-xs flex items-center justify-center shrink-0 border border-indigo-200/60 shadow-2xs">
+                    {getInitials(row.name)}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <Link
+                      href={`/students/${row.registerId}`}
+                      className="block font-semibold text-slate-900 text-base leading-snug break-words hover:text-indigo-600"
+                    >
+                      {row.name}
+                    </Link>
+                    <div className="mt-1 flex flex-wrap items-center gap-2">
+                      <span className="font-mono text-xs text-slate-500">#{row.registerId}</span>
+                      {statusPill(row)}
+                      {savingBadge(row)}
                     </div>
-                  </th>
-
-                  {statuses.map((status, statusIndex) => {
+                  </div>
+                </div>
+                <div className="mt-3 grid grid-cols-3 gap-2" role="group" aria-label={`Attendance for ${row.name}`}>
+                  {statuses.map((status) => {
                     const isSelected = row.status === status
                     return (
-                      <td key={status} className="p-3 text-center">
-                        <button
-                          type="button"
-                          data-student-index={index}
-                          data-attendance-status={statusIndex}
-                          aria-label={`${status} for ${row.name}`}
-                          aria-pressed={isSelected}
-                          disabled={saving.includes(row.registerId)}
-                          onKeyDown={(event) => {
-                            if (event.key === 'ArrowRight' || event.key === 'ArrowLeft') {
-                              event.preventDefault()
-                              const next =
-                                (statusIndex + (event.key === 'ArrowRight' ? 1 : statuses.length - 1)) % statuses.length
-                              void setStatus(row.registerId, statuses[next])
-                            }
-                            if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
-                              event.preventDefault()
-                              const targetIndex = Math.max(
-                                0,
-                                Math.min(filteredRows.length - 1, index + (event.key === 'ArrowDown' ? 1 : -1)),
-                              )
-                              document
-                                .querySelector<HTMLButtonElement>(
-                                  `button[data-student-index="${targetIndex}"][data-attendance-status="${statusIndex}"]`,
-                                )
-                                ?.focus()
-                            }
-                            // Quick single-key shortcuts
-                            const key = event.key.toLowerCase()
-                            if (key === 'p') {
-                              event.preventDefault()
-                              void setStatus(row.registerId, 'Present')
-                            } else if (key === 'a') {
-                              event.preventDefault()
-                              void setStatus(row.registerId, 'Absent')
-                            } else if (key === 'e') {
-                              event.preventDefault()
-                              void setStatus(row.registerId, 'Exempt')
-                            }
-                          }}
-                          onClick={() => void setStatus(row.registerId, status)}
-                          className={`w-full min-h-10 sm:min-h-11 px-3 py-2 rounded-full border text-xs sm:text-sm transition-all cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:ring-2 focus-visible:ring-[var(--g1)] inline-flex items-center justify-center gap-1.5 ${getStatusButtonClass(
-                            status,
-                            isSelected,
-                          )}`}
-                        >
-                          {isSelected ? (
-                            <>
-                              <Check size={14} strokeWidth={3} className="shrink-0" />
-                              <span>{status}</span>
-                            </>
-                          ) : (
-                            <span>{status}</span>
-                          )}
-                        </button>
-                      </td>
+                      <button
+                        key={status}
+                        type="button"
+                        aria-label={`${status} for ${row.name}`}
+                        aria-pressed={isSelected}
+                        disabled={saving.includes(row.registerId)}
+                        onClick={() => void setStatus(row.registerId, status)}
+                        className={`min-h-12 px-2 rounded-xl border text-sm transition-all cursor-pointer inline-flex items-center justify-center gap-1 ${getStatusButtonClass(
+                          status,
+                          isSelected,
+                        )}`}
+                      >
+                        {isSelected && <Check size={14} strokeWidth={3} className="shrink-0" />}
+                        <span>{status}</span>
+                      </button>
                     )
                   })}
+                </div>
+              </li>
+            ))}
+          </ul>
+
+          {/* Bulk action and progress stay in reach at the bottom of the screen on phones. */}
+          <div className="md:hidden mobile-action-bar -mx-1 rounded-2xl border border-[var(--border)] bg-[var(--card)]/95 backdrop-blur p-3 shadow-lg flex items-center justify-between gap-3">
+            <span className="text-sm font-semibold text-slate-700">
+              {markedCount} of {rows.length} marked
+            </span>
+            <button
+              type="button"
+              className="min-h-11 px-4 rounded-xl text-sm font-semibold inline-flex items-center gap-2 border border-emerald-300 text-emerald-800 bg-emerald-50 hover:bg-emerald-100 cursor-pointer"
+              disabled={rows.length === 0}
+              onClick={markAllPresent}
+            >
+              <UserCheck size={16} className="text-emerald-700" />
+              <span>All present</span>
+            </button>
+          </div>
+
+          <div className="hidden md:block overflow-x-auto rounded-xl border border-[var(--border)] shadow-xs bg-[var(--card)]">
+            <table className="w-full min-w-[680px] text-left">
+              <thead className="bg-slate-50/90 border-b border-slate-200">
+                <tr>
+                  <th scope="col" className="p-4 font-bold text-slate-700 text-xs uppercase tracking-wider w-[42%]">
+                    Student Information
+                  </th>
+                  {statuses.map((status) => (
+                    <th
+                      key={status}
+                      scope="col"
+                      className="p-3 text-center font-bold text-slate-700 text-xs uppercase tracking-wider"
+                    >
+                      {status}
+                    </th>
+                  ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {filteredRows.map((row, index) => (
+                  <tr key={row.registerId} data-roster-student className="hover:bg-slate-50/80 transition-colors">
+                    <th scope="row" className="p-4 font-normal">
+                      <div className="flex items-center gap-3">
+                        {/* Avatar Initials Badge */}
+                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500/10 to-indigo-600/20 text-indigo-700 font-bold text-xs flex items-center justify-center shrink-0 border border-indigo-200/60 shadow-2xs">
+                          {getInitials(row.name)}
+                        </div>
+
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <Link
+                              href={`/students/${row.registerId}`}
+                              className="font-semibold text-slate-900 hover:text-indigo-600 text-sm sm:text-base hover:underline truncate"
+                              title={`View profile for ${row.name}`}
+                            >
+                              {row.name}
+                            </Link>
+                            <span className="font-mono text-xs text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200/70">
+                              #{row.registerId}
+                            </span>
+                            {savingBadge(row)}
+                          </div>
+
+                          {/* Status hint pill for immediate row scanning */}
+                          <div className="mt-1 flex items-center gap-2">{statusPill(row)}</div>
+                        </div>
+                      </div>
+                    </th>
+
+                    {statuses.map((status, statusIndex) => {
+                      const isSelected = row.status === status
+                      return (
+                        <td key={status} className="p-3 text-center">
+                          <button
+                            type="button"
+                            data-student-index={index}
+                            data-attendance-status={statusIndex}
+                            aria-label={`${status} for ${row.name}`}
+                            aria-pressed={isSelected}
+                            disabled={saving.includes(row.registerId)}
+                            onKeyDown={(event) => {
+                              if (event.key === 'ArrowRight' || event.key === 'ArrowLeft') {
+                                event.preventDefault()
+                                const next =
+                                  (statusIndex + (event.key === 'ArrowRight' ? 1 : statuses.length - 1)) %
+                                  statuses.length
+                                void setStatus(row.registerId, statuses[next])
+                              }
+                              if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+                                event.preventDefault()
+                                const targetIndex = Math.max(
+                                  0,
+                                  Math.min(filteredRows.length - 1, index + (event.key === 'ArrowDown' ? 1 : -1)),
+                                )
+                                document
+                                  .querySelector<HTMLButtonElement>(
+                                    `button[data-student-index="${targetIndex}"][data-attendance-status="${statusIndex}"]`,
+                                  )
+                                  ?.focus()
+                              }
+                              // Quick single-key shortcuts
+                              const key = event.key.toLowerCase()
+                              if (key === 'p') {
+                                event.preventDefault()
+                                void setStatus(row.registerId, 'Present')
+                              } else if (key === 'a') {
+                                event.preventDefault()
+                                void setStatus(row.registerId, 'Absent')
+                              } else if (key === 'e') {
+                                event.preventDefault()
+                                void setStatus(row.registerId, 'Exempt')
+                              }
+                            }}
+                            onClick={() => void setStatus(row.registerId, status)}
+                            className={`w-full min-h-10 sm:min-h-11 px-3 py-2 rounded-full border text-xs sm:text-sm transition-all cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:ring-2 focus-visible:ring-[var(--g1)] inline-flex items-center justify-center gap-1.5 ${getStatusButtonClass(
+                              status,
+                              isSelected,
+                            )}`}
+                          >
+                            {isSelected ? (
+                              <>
+                                <Check size={14} strokeWidth={3} className="shrink-0" />
+                                <span>{status}</span>
+                              </>
+                            ) : (
+                              <span>{status}</span>
+                            )}
+                          </button>
+                        </td>
+                      )
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
 
       {/* 5. Keyboard Navigation Hint Footer */}
       <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/70 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs text-slate-500">
-        <span className="flex items-center gap-1.5">
+        <span className="keyboard-only-hint flex flex-wrap items-center gap-1.5">
           <span className="font-semibold text-slate-700">💡 Fast Marking:</span>
           <span>Use Arrow keys to navigate rows. Press</span>
           <kbd className="px-1.5 py-0.5 rounded bg-white border border-slate-200 font-mono font-bold text-slate-700 shadow-2xs">
