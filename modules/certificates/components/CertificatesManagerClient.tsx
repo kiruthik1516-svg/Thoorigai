@@ -420,7 +420,7 @@ export function CertificatesManagerClient({
               pageSize: String(pageSize),
             })}`}
             aria-disabled={page <= 1}
-            className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-full border border-[var(--border)] font-medium transition-colors ${
+            className={`pager-link inline-flex items-center gap-1 px-3 py-1.5 rounded-full border border-[var(--border)] font-medium transition-colors ${
               page <= 1
                 ? 'pointer-events-none opacity-40 bg-[var(--panel)]'
                 : 'hover:bg-[var(--panel)] text-[var(--ink)]'
@@ -441,7 +441,7 @@ export function CertificatesManagerClient({
               pageSize: String(pageSize),
             })}`}
             aria-disabled={page >= totalPages}
-            className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-full border border-[var(--border)] font-medium transition-colors ${
+            className={`pager-link inline-flex items-center gap-1 px-3 py-1.5 rounded-full border border-[var(--border)] font-medium transition-colors ${
               page >= totalPages
                 ? 'pointer-events-none opacity-40 bg-[var(--panel)]'
                 : 'hover:bg-[var(--panel)] text-[var(--ink)]'

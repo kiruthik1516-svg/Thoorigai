@@ -318,7 +318,7 @@ export default function SignupPage() {
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-3.5" aria-labelledby="signup-title">
+        <form method="post" onSubmit={handleSubmit} className="space-y-3 sm:space-y-3.5" aria-labelledby="signup-title">
           {/* OTP Code Field - High visibility when tab is active */}
           {activeTab === 'otp' && (
             <div className="p-3.5 rounded-2xl border-2 border-emerald-300 bg-emerald-50/40 transition-all">

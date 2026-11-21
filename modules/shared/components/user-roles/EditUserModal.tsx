@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
+import { useDialog } from '@/lib/hooks/useDialog'
 import Link from 'next/link'
 import { History, Plus, ShieldAlert, Trash2, UserMinus, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -38,6 +39,8 @@ export function EditUserModal({
   onRevokeAccess: (userId: string) => void
   onRequestDisable: (user: UserProfile) => void
 }) {
+  const dialogRef = useRef<HTMLDivElement>(null)
+  useDialog(true, onClose, dialogRef)
   const [form, setForm] = useState<UserDetailsForm>(() => userDetailsForm(user))
   const [saving, setSaving] = useState(false)
 
@@ -59,7 +62,13 @@ export function EditUserModal({
   const accessBusy = saving || revokingUserId === user.id || deletingUserId === user.id
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-3 sm:p-4 animate-in fade-in">
+    <div
+      ref={dialogRef}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Edit user"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-3 sm:p-4 animate-in fade-in"
+    >
       <div className="bg-white rounded-2xl shadow-xl border border-slate-200 max-w-2xl w-full max-h-[92vh] overflow-y-auto p-5 sm:p-7 relative">
         <button
           type="button"

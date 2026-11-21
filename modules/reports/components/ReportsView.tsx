@@ -1,6 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
+import dynamic from 'next/dynamic'
 import {
   ArrowDownRight,
   Calendar,
@@ -20,12 +21,30 @@ import { PaymentsTable } from '@/components/shared/PaymentsTable'
 import { KpiCard } from '@/components/ui/KpiCard'
 import { computeReportMetrics } from './report/metrics'
 import { CategoryPerformanceTiers } from './report/CategoryPerformanceTiers'
-import { PaymentMethodTotalsChart } from './report/PaymentMethodTotalsChart'
-import { CourseEnrollmentChart } from './report/CourseEnrollmentChart'
-import { AcquisitionChannelsChart } from './report/AcquisitionChannelsChart'
-import { PaymentVelocityChart } from './report/PaymentVelocityChart'
-import { PaymentClearanceChart } from './report/PaymentClearanceChart'
 import { GenderDemographicsChart } from './report/GenderDemographicsChart'
+
+// recharts is large, so the charts load after the KPIs and filters are interactive (mobile audit).
+const chartPlaceholder = () => <div className="h-[260px] rounded-xl bg-[var(--panel)] animate-pulse" aria-hidden />
+const PaymentMethodTotalsChart = dynamic(
+  () => import('./report/PaymentMethodTotalsChart').then((m) => m.PaymentMethodTotalsChart),
+  { ssr: false, loading: chartPlaceholder },
+)
+const CourseEnrollmentChart = dynamic(
+  () => import('./report/CourseEnrollmentChart').then((m) => m.CourseEnrollmentChart),
+  { ssr: false, loading: chartPlaceholder },
+)
+const AcquisitionChannelsChart = dynamic(
+  () => import('./report/AcquisitionChannelsChart').then((m) => m.AcquisitionChannelsChart),
+  { ssr: false, loading: chartPlaceholder },
+)
+const PaymentVelocityChart = dynamic(
+  () => import('./report/PaymentVelocityChart').then((m) => m.PaymentVelocityChart),
+  { ssr: false, loading: chartPlaceholder },
+)
+const PaymentClearanceChart = dynamic(
+  () => import('./report/PaymentClearanceChart').then((m) => m.PaymentClearanceChart),
+  { ssr: false, loading: chartPlaceholder },
+)
 
 function downloadStudentsCsv(students: Student[]) {
   const rows = [
@@ -80,12 +99,13 @@ export function ReportsView({
             Executive analytics — financial velocity, cohort enrollment, marketing channels, and collection insights.
           </p>
         </div>
-        <div className="flex items-center gap-3 flex-wrap shrink-0">
-          <div className="flex items-center gap-2 p-1.5 rounded-full bg-[var(--card)] border border-[var(--border)] shadow-2xs">
-            <label htmlFor="rep-start-date" className="text-xs font-bold text-[var(--mute)] pl-2">
-              From
-            </label>
+        <div className="flex items-center gap-3 flex-wrap min-w-0">
+          {/* Each label stays with its date, and the two pairs wrap on narrow screens. */}
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2 p-1.5 rounded-2xl sm:rounded-full bg-[var(--card)] border border-[var(--border)] shadow-2xs min-w-0">
             <div className="flex items-center gap-1.5 text-xs text-[var(--mute)]">
+              <label htmlFor="rep-start-date" className="text-xs font-bold text-[var(--mute)] pl-2 w-9">
+                From
+              </label>
               <Calendar size={14} className="text-[var(--mute)]" />
               <input
                 id="rep-start-date"
@@ -96,10 +116,10 @@ export function ReportsView({
                 className="text-xs border border-[var(--border)] rounded-full px-2.5 py-1 bg-[var(--panel)] text-[var(--text)] focus:outline-none focus:ring-1 focus:ring-[var(--g1)]"
               />
             </div>
-            <label htmlFor="rep-end-date" className="text-xs font-bold text-[var(--mute)]">
-              To
-            </label>
             <div className="flex items-center gap-1.5 text-xs text-[var(--mute)] pr-1">
+              <label htmlFor="rep-end-date" className="text-xs font-bold text-[var(--mute)] pl-2 sm:pl-0 w-9 sm:w-auto">
+                To
+              </label>
               <Calendar size={14} className="text-[var(--mute)]" />
               <input
                 id="rep-end-date"

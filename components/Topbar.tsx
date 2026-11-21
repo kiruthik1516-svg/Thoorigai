@@ -36,7 +36,10 @@ export function Topbar({ onMenu, role }: { onMenu: () => void; role: Role }) {
 
   const [query, setQuery] = useState('')
   const [open, setOpen] = useState(false)
+  // On phones the search starts as an icon and expands over the header (mobile audit).
+  const [searchExpanded, setSearchExpanded] = useState(false)
   const wrapRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
 
   const [students, setStudents] = useState<Student[]>([])
   const [payments, setPayments] = useState<Payment[]>([])
@@ -136,6 +139,7 @@ export function Topbar({ onMenu, role }: { onMenu: () => void; role: Role }) {
       if (e.key === 'Escape') {
         setOpen(false)
         setQuery('')
+        setSearchExpanded(false)
       }
     }
     document.addEventListener('mousedown', onPointer)
@@ -150,6 +154,13 @@ export function Topbar({ onMenu, role }: { onMenu: () => void; role: Role }) {
 
   const choose = (action: () => void) => {
     action()
+    setOpen(false)
+    setQuery('')
+    setSearchExpanded(false)
+  }
+
+  const collapseSearch = () => {
+    setSearchExpanded(false)
     setOpen(false)
     setQuery('')
   }
@@ -276,25 +287,9 @@ export function Topbar({ onMenu, role }: { onMenu: () => void; role: Role }) {
   const roleInitials = (role || 'admin').slice(0, 2).toUpperCase()
 
   return (
-    <header className="topbar">
-      <button
-        type="button"
-        onClick={onMenu}
-        aria-label="Toggle navigation"
-        style={{
-          display: 'grid',
-          placeItems: 'center',
-          width: 32,
-          height: 32,
-          borderRadius: 'var(--radius-sm)',
-          border: '1px solid rgba(226, 232, 240, 0.6)',
-          background: 'rgba(255, 255, 255, 0.5)',
-          color: '#475569',
-          cursor: 'pointer',
-          transition: 'all 0.15s',
-        }}
-      >
-        <Menu size={16} />
+    <header className={'topbar' + (searchExpanded ? ' is-searching' : '')}>
+      <button type="button" onClick={onMenu} aria-label="Toggle navigation" className="top-menu-btn">
+        <Menu size={18} />
       </button>
 
       <nav className="breadcrumb-nav hidden md:flex" aria-label="Breadcrumb">
@@ -323,10 +318,25 @@ export function Topbar({ onMenu, role }: { onMenu: () => void; role: Role }) {
       </nav>
 
       <div className="top-actions">
+        <button
+          type="button"
+          className="top-search-toggle top-icon-btn"
+          aria-label="Search students"
+          aria-expanded={searchExpanded}
+          onClick={() => {
+            setSearchExpanded(true)
+            window.setTimeout(() => inputRef.current?.focus(), 0)
+          }}
+        >
+          <Search size={18} />
+        </button>
         <div className="top-search-wrap" ref={wrapRef}>
           <div className={'top-search' + (open ? ' is-open' : '')}>
             <Search size={14} />
             <input
+              ref={inputRef}
+              type="search"
+              enterKeyHint="search"
               role="combobox"
               aria-autocomplete="list"
               value={query}
@@ -356,6 +366,9 @@ export function Topbar({ onMenu, role }: { onMenu: () => void; role: Role }) {
               </button>
             )}
           </div>
+          <button type="button" className="top-search-close" aria-label="Close search" onClick={collapseSearch}>
+            Cancel
+          </button>
 
           {open && query.trim() && (
             <div className="student-search-panel" id="student-search-results" role="listbox">
@@ -445,7 +458,8 @@ export function Topbar({ onMenu, role }: { onMenu: () => void; role: Role }) {
           type="button"
           onClick={openSettings}
           title="Theme & Appearance"
-          className="inline-flex items-center justify-center w-8 h-8 rounded-full border border-[var(--border)] bg-[var(--panel)] text-[var(--mute)] hover:text-[var(--g1)] hover:bg-[var(--hover-bg)] transition-all cursor-pointer"
+          aria-label="Theme and appearance"
+          className="top-secondary inline-flex items-center justify-center w-8 h-8 rounded-full border border-[var(--border)] bg-[var(--panel)] text-[var(--mute)] hover:text-[var(--g1)] hover:bg-[var(--hover-bg)] transition-all cursor-pointer"
         >
           <Palette size={14} />
         </button>
@@ -453,7 +467,8 @@ export function Topbar({ onMenu, role }: { onMenu: () => void; role: Role }) {
         <Link
           href="/settings/user"
           title="User settings"
-          className="inline-flex items-center justify-center w-8 h-8 rounded-full border border-[var(--border)] bg-[var(--panel)] text-[var(--mute)] hover:text-[var(--text)] hover:bg-[var(--hover-bg)] transition-all"
+          aria-label="User settings"
+          className="top-secondary inline-flex items-center justify-center w-8 h-8 rounded-full border border-[var(--border)] bg-[var(--panel)] text-[var(--mute)] hover:text-[var(--text)] hover:bg-[var(--hover-bg)] transition-all"
         >
           <UserCog size={14} />
         </Link>
@@ -462,7 +477,8 @@ export function Topbar({ onMenu, role }: { onMenu: () => void; role: Role }) {
           type="button"
           onClick={() => void handleSignOut()}
           title="Sign out"
-          className="inline-flex items-center justify-center w-8 h-8 rounded-full border border-[var(--border)] bg-[var(--panel)] text-[var(--mute)] hover:text-rose-500 hover:bg-rose-50/50 transition-all cursor-pointer"
+          aria-label="Sign out"
+          className="top-secondary inline-flex items-center justify-center w-8 h-8 rounded-full border border-[var(--border)] bg-[var(--panel)] text-[var(--mute)] hover:text-rose-500 hover:bg-rose-50/50 transition-all cursor-pointer"
         >
           <LogOut size={14} />
         </button>

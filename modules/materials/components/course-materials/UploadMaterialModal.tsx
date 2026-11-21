@@ -1,6 +1,7 @@
 'use client'
 
 import { useRef, useState } from 'react'
+import { useDialog } from '@/lib/hooks/useDialog'
 import { AlertCircle, Check, FileText, Image as ImageIcon, UploadCloud, X } from 'lucide-react'
 import { MAX_COURSE_MATERIAL_BYTES } from '@/lib/security/uploads'
 import { detectMaterialType, titleFromFileName } from './model'
@@ -24,6 +25,8 @@ export function UploadMaterialModal({
   onUpload: (input: UploadInput) => Promise<boolean>
   onClose: () => void
 }) {
+  const dialogRef = useRef<HTMLDivElement>(null)
+  useDialog(true, onClose, dialogRef)
   const [newMaterial, setNewMaterial] = useState<Draft>({ title: '', type: 'pdf', file: null })
   const [uploading, setUploading] = useState(false)
   const [isDragOver, setIsDragOver] = useState(false)
@@ -63,7 +66,13 @@ export function UploadMaterialModal({
   }
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in duration-150">
+    <div
+      ref={dialogRef}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Upload learning material"
+      className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in duration-150"
+    >
       <div className="bg-[var(--card)] rounded-[26px] shadow-xl border border-[var(--border)] w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-150">
         {/* Modal Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border)]">

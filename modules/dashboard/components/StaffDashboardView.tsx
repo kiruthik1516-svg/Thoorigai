@@ -311,7 +311,7 @@ export function StaffDashboardView({
               Curriculum categories, course variants, and enrolled student breakdown
             </p>
           </div>
-          <Link href="/courses" className="text-xs font-semibold text-[var(--g1)] hover:underline">
+          <Link href="/courses" className="tap-link text-xs font-semibold text-[var(--g1)] hover:underline">
             View courses
           </Link>
         </div>

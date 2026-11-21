@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { useDialog } from '@/lib/hooks/useDialog'
 import { createPortal } from 'react-dom'
 import { useSearchParams } from 'next/navigation'
 import { ArrowLeft, CheckCircle2, FileCheck2, FileText, Printer, Receipt, X } from 'lucide-react'
@@ -59,6 +60,9 @@ export function StudentDetail({
   const courseDuration = matchedCourse?.duration
 
   const [showPrintPreviewModal, setShowPrintPreviewModal] = useState(false)
+  const printPreviewRef = useRef<HTMLDivElement>(null)
+  const closePrintPreview = useCallback(() => setShowPrintPreviewModal(false), [])
+  useDialog(showPrintPreviewModal, closePrintPreview, printPreviewRef)
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
@@ -232,6 +236,7 @@ export function StudentDetail({
       {/* ─── ON-SCREEN PDF PREVIEW MODAL ─── */}
       {showPrintPreviewModal && (
         <div
+          ref={printPreviewRef}
           role="dialog"
           aria-modal="true"
           aria-labelledby="print-preview-modal-title"

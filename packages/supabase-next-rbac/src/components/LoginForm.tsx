@@ -58,7 +58,7 @@ export function LoginForm({ signupUrl = '/signup', loginApiEndpoint = '/api/auth
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form method="post" onSubmit={handleSubmit} className="space-y-4">
       {error && (
         <div className="flex items-start gap-2.5 p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs leading-relaxed">
           <AlertCircle size={16} className="shrink-0 mt-0.5" />

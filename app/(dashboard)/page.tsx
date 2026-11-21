@@ -25,7 +25,8 @@ export default async function DashboardPage() {
     getAllStudents(),
     listCourseCategories().catch(() => []),
     getCachedCourseOptions().catch(() => []),
-    supabase.from('profiles').select('id, full_name, created_at').eq('role', 'pending'),
+    // Disabled accounts also hold the pending role (F-12); they are not access requests.
+    supabase.from('profiles').select('id, full_name, created_at').eq('role', 'pending').is('disabled_at', null),
     getStaffDashboardData().catch(() => null),
   ])
 

@@ -67,6 +67,8 @@
   --g5: #c2e5d3;
   --g1b: #155a3a;
   --g2b: #0d3b25;
+  /* Hero cards (user settings, brand preview) put white text on this; it follows the accent colours. */
+  --g-hero: linear-gradient(135deg, var(--g1) 0%, var(--g1b) 100%);
 
   /* Semantic Colors — Unified to Selected Color Gradient & Tones */
   --success: var(--g1);
@@ -5177,4 +5179,207 @@ body:has(.login-page) {
 }
 .skip-link:focus {
   top: 0.75rem;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Phones, tablets and touch screens (mobile audit, 2026-11-20).
+   Kept last so it wins over the duplicated topbar/sidebar rules above.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* Header controls */
+.top-menu-btn,
+.top-icon-btn {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--mute);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.top-menu-btn:hover,
+.top-icon-btn:hover {
+  color: var(--text);
+}
+.top-search-toggle,
+.top-search-close {
+  display: none;
+}
+.top-search input[type='search']::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+  appearance: none;
+}
+.touch-target {
+  min-width: 44px;
+  min-height: 44px;
+}
+
+/* The breadcrumb's Tailwind `hidden md:flex` loses to `.breadcrumb-nav { display: flex }` above. */
+@media (max-width: 767px) {
+  .breadcrumb-nav {
+    display: none;
+  }
+}
+
+/* Phones: search collapses to an icon; theme, user settings and sign out live in the drawer. */
+@media (max-width: 639px) {
+  .topbar {
+    gap: 8px;
+    padding-left: max(12px, env(safe-area-inset-left, 0px));
+    padding-right: max(12px, env(safe-area-inset-right, 0px));
+  }
+  .top-actions {
+    gap: 8px;
+    min-width: 0;
+  }
+  .top-secondary {
+    display: none !important;
+  }
+  .top-search-toggle {
+    display: grid;
+  }
+  .top-search-wrap {
+    display: none;
+  }
+  .topbar.is-searching .top-search-wrap {
+    position: absolute;
+    inset: 0;
+    z-index: 5;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px max(12px, env(safe-area-inset-right, 0px)) 8px max(12px, env(safe-area-inset-left, 0px));
+    background: var(--shell, var(--surface, #ffffff));
+  }
+  .topbar.is-searching .top-search {
+    flex: 1;
+    min-width: 0;
+    width: auto;
+  }
+  .topbar.is-searching .top-search input {
+    width: 100%;
+    min-width: 0;
+  }
+  .topbar.is-searching .top-search-close {
+    display: grid;
+    place-items: center;
+    min-height: 44px;
+    padding: 0 6px;
+    border: 0;
+    background: transparent;
+    color: var(--g1, var(--accent));
+    font-weight: 600;
+    font-size: 15px;
+    cursor: pointer;
+  }
+  .student-search-panel {
+    position: fixed;
+    left: max(8px, env(safe-area-inset-left, 0px));
+    right: max(8px, env(safe-area-inset-right, 0px));
+    top: calc(60px + env(safe-area-inset-top, 0px));
+    width: auto;
+    max-height: calc(100dvh - 76px);
+  }
+}
+
+/* The permanent sidebar needs room: below 1024 px, or on a phone held sideways, use the drawer. */
+@media (max-width: 1023px), (max-height: 500px) {
+  .sidebar {
+    display: none;
+  }
+}
+
+/* Notch and home bar (viewport-fit=cover is set in app/layout.tsx). */
+.topbar {
+  padding-top: env(safe-area-inset-top, 0px);
+  height: calc(64px + env(safe-area-inset-top, 0px));
+}
+@media (max-width: 639px) {
+  .topbar {
+    height: calc(60px + env(safe-area-inset-top, 0px));
+  }
+}
+#main-content {
+  padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+}
+.mobile-action-bar {
+  position: sticky;
+  bottom: 0;
+  z-index: 20;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* iOS Safari zooms into any field under 16px when it gets focus. */
+@media (max-width: 767px), (pointer: coarse) {
+  input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']),
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
+/* Comfortable touch targets (44px, Apple HIG / Material) on touch screens. */
+@media (pointer: coarse) {
+  .top-menu-btn,
+  .top-icon-btn,
+  .topbar .top-secondary,
+  .topbar [aria-label^='Notifications'] {
+    min-width: 44px;
+    min-height: 44px;
+  }
+  .nav-item {
+    min-height: 44px;
+  }
+  .pager-link,
+  .tap-link {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    min-width: 44px;
+    justify-content: center;
+  }
+}
+
+/* Keyboard shortcut hints mean nothing without a keyboard. */
+@media (hover: none), (pointer: coarse) {
+  .keyboard-only-hint {
+    display: none !important;
+  }
+}
+
+/* Readable text on phones: nothing below 12px (print documents keep their own sizes). */
+@media (max-width: 767px) {
+  .text-\[9px\],
+  .text-\[10px\],
+  .text-\[11px\],
+  .account small,
+  .audit-action,
+  .audit-actor-role,
+  .audit-table-name,
+  .brand-sub,
+  .channel-count-pill,
+  .chart-badge,
+  .col-chart-line span,
+  .col-pillar-count,
+  .col-pillar-label,
+  .donut-center-label,
+  .edit-optional,
+  .edit-section-title,
+  .nav-count,
+  .nav-group-label,
+  .page-heading .eyebrow,
+  .stat-meta,
+  .status,
+  .status-card-title,
+  .student-cell small,
+  .student-search-chip,
+  .student-search-invoices > span,
+  .student-search-invoices button em,
+  th {
+    font-size: 12px !important;
+  }
 }

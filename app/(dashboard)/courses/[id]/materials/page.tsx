@@ -25,11 +25,14 @@ export default async function CourseMaterialsPage({ params, searchParams }: Page
         <Link
           href={`/courses/${id}/materials?page=${Math.max(1, page - 1)}&pageSize=${pageSize}`}
           aria-disabled={page === 1}
+          className="pager-link"
         >
           Previous
         </Link>
         <span>Page {page}</span>
-        <Link href={`/courses/${id}/materials?page=${page + 1}&pageSize=${pageSize}`}>Next</Link>
+        <Link className="pager-link" href={`/courses/${id}/materials?page=${page + 1}&pageSize=${pageSize}`}>
+          Next
+        </Link>
       </div>
     </>
   )

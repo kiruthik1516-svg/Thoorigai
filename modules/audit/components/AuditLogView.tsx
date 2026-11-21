@@ -171,7 +171,7 @@ function AuditRow({ entry }: { entry: AuditEntry }) {
           {hasDetail && (
             <button
               type="button"
-              className="p-1 rounded-full text-[var(--mute)] hover:text-[var(--ink)] hover:bg-[var(--panel)] transition-colors"
+              className="tap-link p-1 rounded-full text-[var(--mute)] hover:text-[var(--ink)] hover:bg-[var(--panel)] transition-colors"
               aria-label={expanded ? 'Collapse changes' : 'Expand changes'}
               onClick={(e) => {
                 e.stopPropagation()
@@ -548,7 +548,7 @@ export function AuditLogView({
                   : buildHref({ page: 1 })
               }
               aria-disabled={!cursor}
-              className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-full border border-[var(--border)] font-medium transition-colors ${
+              className={`pager-link inline-flex items-center gap-1 px-3 py-1.5 rounded-full border border-[var(--border)] font-medium transition-colors ${
                 !cursor
                   ? 'pointer-events-none opacity-40 bg-[var(--panel)] text-[var(--mute)]'
                   : 'hover:bg-[var(--card)] text-[var(--ink)]'
@@ -564,7 +564,7 @@ export function AuditLogView({
                   : '#'
               }
               aria-disabled={!hasNextPage}
-              className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-full border border-[var(--border)] font-medium transition-colors ${
+              className={`pager-link inline-flex items-center gap-1 px-3 py-1.5 rounded-full border border-[var(--border)] font-medium transition-colors ${
                 !hasNextPage
                   ? 'pointer-events-none opacity-40 bg-[var(--panel)] text-[var(--mute)]'
                   : 'hover:bg-[var(--card)] text-[var(--ink)]'

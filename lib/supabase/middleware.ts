@@ -58,6 +58,7 @@ export async function updateSession(request: NextRequest) {
     pathname === '/api/auth/redeem-invite' ||
     pathname === '/api/health' ||
     pathname === '/api/ready' ||
+    pathname === '/manifest.webmanifest' ||
     pathname.startsWith('/verify/') ||
     pathname.startsWith('/api/verify/')
   if (publicPath) return NextResponse.next({ request })

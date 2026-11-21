@@ -67,7 +67,10 @@ export function StudentProfileHero({
             </span>
             <strong className="text-slate-900 font-mono text-sm block">
               {student.phone ? (
-                <a href={`tel:+91${student.phone}`} className="hover:text-indigo-600 transition-colors">
+                <a
+                  href={`tel:+91${student.phone}`}
+                  className="tap-link justify-start! hover:text-indigo-600 transition-colors"
+                >
                   +91 {student.phone}
                 </a>
               ) : (
@@ -82,7 +85,10 @@ export function StudentProfileHero({
             </span>
             <strong className="text-slate-900 font-mono text-sm block">
               {student.altPhone ? (
-                <a href={`tel:+91${student.altPhone}`} className="hover:text-indigo-600 transition-colors">
+                <a
+                  href={`tel:+91${student.altPhone}`}
+                  className="tap-link justify-start! hover:text-indigo-600 transition-colors"
+                >
                   +91 {student.altPhone}
                 </a>
               ) : (

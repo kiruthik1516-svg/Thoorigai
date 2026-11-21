@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
+import { useDialog } from '@/lib/hooks/useDialog'
 import { FileCheck2, History, Printer, Search } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import type { CertificateRecord, Student } from '@/lib/types'
@@ -36,6 +37,15 @@ export function Certificates({
   const [previewStudent, setPreviewStudent] = useState<Student | null>(null)
   const [showCertificatePreview, setShowCertificatePreview] = useState(false)
   const [previewCertificate, setPreviewCertificate] = useState<CertificateRecord | null>(null)
+  const previewOpen = Boolean((showPreview && previewStudent) || (showCertificatePreview && previewCertificate))
+  const previewRef = useRef<HTMLDivElement>(null)
+  const closePreview = useCallback(() => {
+    setShowPreview(false)
+    setPreviewStudent(null)
+    setShowCertificatePreview(false)
+    setPreviewCertificate(null)
+  }, [])
+  useDialog(previewOpen, closePreview, previewRef)
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -330,7 +340,13 @@ export function Certificates({
       </section>
       {/* Certificate Preview Modal */}
       {(showPreview && previewStudent) || (showCertificatePreview && previewCertificate) ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+        <div
+          ref={previewRef}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Certificate preview"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+        >
           <div className="relative w-full max-w-[1100px] max-h-[90vh] overflow-y-auto">
             {/* Certificate Preview Content */}
             <div className="certificate-preview-container w-full h-full">

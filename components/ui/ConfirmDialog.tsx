@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useRef } from 'react'
+import { useDialog } from '@/lib/hooks/useDialog'
 import { PillButton } from '@/components/ui/PillButton'
 import { AlertCircle, AlertTriangle, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -27,46 +28,7 @@ export function ConfirmDialog({
   destructive = false,
 }: ConfirmDialogProps) {
   const dialogRef = useRef<HTMLDivElement>(null)
-  const previousFocus = useRef<HTMLElement | null>(null)
-  const onCancelRef = useRef(onCancel)
-  onCancelRef.current = onCancel
-
-  useEffect(() => {
-    if (!isOpen) return
-    previousFocus.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
-    const focusable = () =>
-      Array.from(
-        dialogRef.current?.querySelectorAll<HTMLElement>(
-          'button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
-        ) ?? [],
-      )
-    focusable()[0]?.focus()
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.preventDefault()
-        onCancelRef.current()
-        return
-      }
-      if (e.key === 'Tab') {
-        const items = focusable()
-        if (!items.length) return
-        const first = items[0]
-        const last = items[items.length - 1]
-        if (e.shiftKey && document.activeElement === first) {
-          e.preventDefault()
-          last.focus()
-        } else if (!e.shiftKey && document.activeElement === last) {
-          e.preventDefault()
-          first.focus()
-        }
-      }
-    }
-    document.addEventListener('keydown', handleKeyDown)
-    return () => {
-      document.removeEventListener('keydown', handleKeyDown)
-      previousFocus.current?.focus()
-    }
-  }, [isOpen])
+  useDialog(isOpen, onCancel, dialogRef)
 
   if (!isOpen) return null
 

@@ -266,7 +266,7 @@ export function AttendanceClientView({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-6">
       {/* 1. Header & KPI Statistics Tiles */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-2">
         <div>
@@ -282,7 +282,8 @@ export function AttendanceClientView({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* On phones the summary sits below the marking panel so the roster is reachable without scrolling past it. */}
+      <div className="order-last md:order-none grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <KpiCard
           title="Overall Rate"
           value={`${kpiData.overallPct}%`}
@@ -322,7 +323,7 @@ export function AttendanceClientView({
         <div
           role="tablist"
           aria-label="Attendance views"
-          className="inline-flex items-center p-1 rounded-full bg-[var(--panel)]"
+          className="flex max-w-full overflow-x-auto items-center p-1 rounded-full bg-[var(--panel)] [scrollbar-width:none]"
         >
           <button
             type="button"
@@ -331,7 +332,7 @@ export function AttendanceClientView({
             aria-selected={activeTab === 'marking'}
             aria-controls="panel-marking"
             onClick={() => handleTabChange('marking')}
-            className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold transition-all cursor-pointer ${
+            className={`inline-flex shrink-0 whitespace-nowrap items-center gap-2 px-4 py-2 min-h-11 rounded-full text-xs font-bold transition-all cursor-pointer ${
               activeTab === 'marking' ? 'text-white shadow-md' : 'text-[var(--mute)] hover:text-[var(--text)]'
             }`}
             style={{
@@ -349,7 +350,7 @@ export function AttendanceClientView({
             aria-selected={activeTab === 'analytics'}
             aria-controls="panel-analytics"
             onClick={() => handleTabChange('analytics')}
-            className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold transition-all cursor-pointer ${
+            className={`inline-flex shrink-0 whitespace-nowrap items-center gap-2 px-4 py-2 min-h-11 rounded-full text-xs font-bold transition-all cursor-pointer ${
               activeTab === 'analytics' ? 'text-white shadow-md' : 'text-[var(--mute)] hover:text-[var(--text)]'
             }`}
             style={{
@@ -378,7 +379,7 @@ export function AttendanceClientView({
             aria-selected={activeTab === 'records'}
             aria-controls="panel-records"
             onClick={() => handleTabChange('records')}
-            className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold transition-all cursor-pointer ${
+            className={`inline-flex shrink-0 whitespace-nowrap items-center gap-2 px-4 py-2 min-h-11 rounded-full text-xs font-bold transition-all cursor-pointer ${
               activeTab === 'records' ? 'text-white shadow-md' : 'text-[var(--mute)] hover:text-[var(--text)]'
             }`}
             style={{

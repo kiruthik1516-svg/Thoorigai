@@ -123,7 +123,7 @@ export function RecordList({
         <nav aria-label={`${title} pages`} className="panel-header flex items-center justify-between">
           <Link
             aria-disabled={keyset ? !cursor : page <= 1}
-            className={(keyset ? !cursor : page <= 1) ? 'pointer-events-none opacity-50' : ''}
+            className={'pager-link' + ((keyset ? !cursor : page <= 1) ? ' pointer-events-none opacity-50' : '')}
             href={
               keyset
                 ? previousCursor
@@ -137,7 +137,9 @@ export function RecordList({
           <span>{keyset ? `Cursor page ${page}` : `Page ${page} of ${totalPages}`}</span>
           <Link
             aria-disabled={keyset ? !nextCursor : page >= totalPages}
-            className={(keyset ? !nextCursor : page >= totalPages) ? 'pointer-events-none opacity-50' : ''}
+            className={
+              'pager-link' + ((keyset ? !nextCursor : page >= totalPages) ? ' pointer-events-none opacity-50' : '')
+            }
             href={
               keyset ? pageHref(page + 1, nextCursor ?? undefined, cursor) : pageHref(Math.min(totalPages, page + 1))
             }

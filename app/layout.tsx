@@ -63,6 +63,8 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   colorScheme: 'light',
   themeColor: brand.theme.colors.navy,
+  // Lets the layout use the full screen on notched phones; the header and bottom bars pad by env(safe-area-inset-*).
+  viewportFit: 'cover',
 }
 
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

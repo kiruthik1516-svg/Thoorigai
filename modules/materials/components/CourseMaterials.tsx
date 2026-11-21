@@ -69,7 +69,7 @@ export function CourseMaterials({
         <div>
           {/* Breadcrumb row */}
           <div className="flex items-center gap-2 text-xs text-gray-500 mb-1.5 font-medium">
-            <Link href="/courses" className="hover:text-blue-600 flex items-center gap-1 transition-colors">
+            <Link href="/courses" className="tap-link hover:text-blue-600 flex items-center gap-1 transition-colors">
               <ArrowLeft size={13} />
               Courses
             </Link>
