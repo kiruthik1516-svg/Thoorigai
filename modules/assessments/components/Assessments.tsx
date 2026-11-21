@@ -234,7 +234,7 @@ export function Assessments({
 
       {/* KPI Tiles (shown in library/create views) */}
       {!selectedAssessmentId && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
           <KpiCard
             title="Total Assessments"
             value={kpis.total}

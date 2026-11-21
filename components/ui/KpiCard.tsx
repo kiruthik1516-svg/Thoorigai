@@ -58,17 +58,16 @@ export function KpiCard({
         />
 
         <div className="relative z-10 flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-[12px] font-bold uppercase tracking-wider text-white/80">{title}</p>
-            <div className="mt-2 text-[clamp(1.5rem,15cqi,2.75rem)] font-extrabold tracking-tight leading-none text-white [overflow-wrap:anywhere]">
-              {value}
-            </div>
-          </div>
+          <p className="min-w-0 text-[12px] font-bold uppercase tracking-wider text-white/80">{title}</p>
           {icon && (
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white/15 text-white backdrop-blur-md">
               {renderKpiIcon(icon, 20)}
             </div>
           )}
+        </div>
+        {/* Full card width, sized to the card, and never broken inside a number (₹42,0 / 00 misreads). */}
+        <div className="relative z-10 mt-1 whitespace-nowrap text-[clamp(1.25rem,13cqi,2.75rem)] font-extrabold tracking-tight leading-none text-white">
+          {value}
         </div>
 
         <div className="relative z-10 mt-4 flex items-center justify-between gap-2 border-t border-white/15 pt-3">
@@ -109,22 +108,13 @@ export function KpiCard({
 
       {/* Content */}
       <div className="relative z-10 flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p
-            className={`text-[13px] font-semibold tracking-wide text-[var(--mute)] transition-colors duration-300 ${
-              highlightOnHover ? 'group-hover:text-white/85' : ''
-            }`}
-          >
-            {title}
-          </p>
-          <div
-            className={`mt-1.5 text-[clamp(1.5rem,15cqi,2.75rem)] font-bold tracking-tight leading-none text-[var(--text-heading)] [overflow-wrap:anywhere] transition-colors duration-300 ${
-              highlightOnHover ? 'group-hover:text-white' : ''
-            }`}
-          >
-            {value}
-          </div>
-        </div>
+        <p
+          className={`min-w-0 text-[13px] font-semibold tracking-wide text-[var(--mute)] transition-colors duration-300 ${
+            highlightOnHover ? 'group-hover:text-white/85' : ''
+          }`}
+        >
+          {title}
+        </p>
         {icon && (
           <div
             className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--g4)] text-[var(--g1)] transition-all duration-300 ${
@@ -136,6 +126,14 @@ export function KpiCard({
             {renderKpiIcon(icon, 18)}
           </div>
         )}
+      </div>
+      {/* Full card width, sized to the card, and never broken inside a number (₹42,0 / 00 misreads). */}
+      <div
+        className={`relative z-10 mt-1 whitespace-nowrap text-[clamp(1.25rem,13cqi,2.75rem)] font-bold tracking-tight leading-none text-[var(--text-heading)] transition-colors duration-300 ${
+          highlightOnHover ? 'group-hover:text-white' : ''
+        }`}
+      >
+        {value}
       </div>
 
       <div

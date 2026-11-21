@@ -5351,8 +5351,8 @@ body:has(.login-page) {
   }
 }
 
-/* Readable text on phones: nothing below 12px (print documents keep their own sizes). */
-@media (max-width: 767px) {
+/* Readable text on phones, upright or sideways: nothing below 12px (print documents keep their own sizes). */
+@media (max-width: 767px), (pointer: coarse) and (max-height: 500px) {
   .text-\[9px\],
   .text-\[10px\],
   .text-\[11px\],

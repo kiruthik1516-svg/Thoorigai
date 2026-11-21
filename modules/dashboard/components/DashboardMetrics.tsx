@@ -395,7 +395,7 @@ export function DashboardMetrics({
       {/* ─── FINANCIAL VIEW PANEL ─── */}
       {activeView === 'financial' && (
         <div id="admin-financial-panel" role="tabpanel" aria-labelledby="admin-dashboard-toggle-financial">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
             {financialMetrics.map(({ label, value, sub, Icon }) => (
               <KpiCard key={label} title={label} value={value} subtitle={sub} icon={<Icon size={18} />} />
             ))}
@@ -512,7 +512,7 @@ export function DashboardMetrics({
       {activeView === 'staff' && (
         <div id="admin-staff-panel" role="tabpanel" aria-labelledby="admin-dashboard-toggle-staff">
           {/* Top Academic KPI Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
             {staffMetrics.map(({ label, value, sub, Icon }) => (
               <KpiCard key={label} title={label} value={value} subtitle={sub} icon={<Icon size={18} />} />
             ))}
