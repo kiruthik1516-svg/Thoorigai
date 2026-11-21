@@ -393,7 +393,7 @@ export function SkillTagsManager({
 
       {/* METRIC OVERVIEW CARDS (only on standalone page, not modal) */}
       {!isModal && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
           <KpiCard
             title="Total Skill Tags"
             value={skills.length}
