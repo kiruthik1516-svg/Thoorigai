@@ -3862,18 +3862,18 @@ td strong {
 }
 .ttk-authorized {
   flex-shrink: 0;
-  text-align: right;
+  text-align: center;
   font-size: 9px;
   color: #475569;
   padding-bottom: 2px;
 }
+/* Signature line above the caption. */
 .ttk-authorized::before {
   content: '';
-  display: inline-block;
-  width: 120px;
+  display: block;
+  width: 140px;
   border-top: 1px solid #94a3b8;
-  margin-right: 8px;
-  vertical-align: top;
+  margin: 0 auto 4px;
 }
 
 /* ═══════════════════════════════════════
