@@ -105,13 +105,13 @@ export function InvoicePrint({
     return {
       invoiceNumber: payment.invoice || `${brand.invoicePrefix}/${y}/INV${suff}`,
       receiptId: payment.id || `${y}${suff}`,
-      date: todayISO(),
+      date: payment.paymentDate || todayISO(),
       studentName: invoiceStudent.name,
       mobile: invoiceStudent.phone && invoiceStudent.phone !== '—' ? invoiceStudent.phone : '',
       studentId: `TAI-${invoiceStudent.registerId}`,
       courseName: COURSE_OPTIONS.includes(invoiceStudent.course) ? invoiceStudent.course : 'custom',
       courseCustom: COURSE_OPTIONS.includes(invoiceStudent.course) ? '' : invoiceStudent.course,
-      paymentType: PAYMENT_TYPES[0],
+      paymentType: payment.paymentType || PAYMENT_TYPES[0],
       grossAmount: String(payment.amount),
       paymentMode: PAYMENT_MODES.includes(payment.method) ? payment.method : 'UPI',
       transactionId: '',
@@ -347,7 +347,7 @@ export function InvoicePrint({
                   onChange={(e) => set('paymentType', e.target.value)}
                   className="edit-input edit-input-light"
                 >
-                  {PAYMENT_TYPES.map((t) => (
+                  {[...new Set([form.paymentType, ...PAYMENT_TYPES])].filter(Boolean).map((t) => (
                     <option key={t} value={t}>
                       {t}
                     </option>
@@ -509,17 +509,6 @@ function InvoiceCopy({
           <span>Receipt ID - [ {form.receiptId || '—'} ]</span>
         </div>
         <b>{copy}</b>
-        {verificationCode && (
-          <div className="invoice-verification-section">
-            <div className="lbl">Verify Invoice</div>
-            <div className="qr-code-container">
-              {qrCode ? <img src={qrCode} alt="Verify invoice" className="qr-code" /> : null}
-            </div>
-            <div className="verification-url">
-              {brand.verifyBaseUrl}/verify/{verificationCode}
-            </div>
-          </div>
-        )}
       </div>
       <header className="ttk-invoice-brand">
         <div className="ttk-invoice-logo">
@@ -531,6 +520,12 @@ function InvoiceCopy({
           <p>Phone: 9244575008 | {brand.tagline}</p>
           <strong>GST No: {gstin || 'GSTIN not configured'}</strong>
         </div>
+        {verificationCode && (
+          <div className="ttk-invoice-qr">
+            {qrCode ? <img src={qrCode} alt="Scan to verify this invoice" /> : <div className="ttk-invoice-qr-blank" />}
+            <span>Scan to verify</span>
+          </div>
+        )}
       </header>
       <div className="ttk-invoice-meta">
         <span>

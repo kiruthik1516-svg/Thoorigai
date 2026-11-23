@@ -105,38 +105,6 @@ export function CertificatePrint({
     }
   })
 
-  // Add print styles when component mounts
-  useEffect(() => {
-    // Create style element for print media
-    const style = document.createElement('style')
-    style.textContent = `
-      .cert-print-root { display: none; }
-      @media print {
-        @page { size: A4 portrait; margin: 0; }
-        html, body { margin: 0; padding: 0; background: #fff; }
-        body > *:not(.cert-print-root) { display: none !important; }
-        .cert-print-root {
-          display: flex; align-items: center; justify-content: center;
-          position: fixed; top: 0; left: 0;
-          width: 210mm; height: 297mm; overflow: hidden; background: #fffdf8;
-        }
-        .cert-print-root .ttk-certificate {
-          width: 620px; height: 877px; margin: 0;
-          transform: scale(min(calc(210mm / 620px), calc(297mm / 877px)));
-          transform-origin: center center;
-          box-shadow: none;
-        }
-        .cert-print-root, .cert-print-root * {
-          -webkit-print-color-adjust: exact; print-color-adjust: exact;
-        }
-      }
-    `
-    document.head.appendChild(style)
-    return () => {
-      document.head.removeChild(style)
-    }
-  }, [])
-
   const skillsArray = form.skills
     .split('\n')
     .map((s) => s.trim())
@@ -147,6 +115,9 @@ export function CertificatePrint({
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
   const [saveError, setSaveError] = useState<string | null>(null)
   const [qrCode, setQrCode] = useState<string | null>(null)
+  // Set when the certificate is issued (passed in, or returned by Save). Only issued certificates get a QR.
+  const [verificationCode, setVerificationCode] = useState<string | null>(certificateRecord?.verificationCode ?? null)
+  const [printAfterSave, setPrintAfterSave] = useState(false)
 
   useEffect(() => {
     const container = containerRef.current
@@ -167,9 +138,6 @@ export function CertificatePrint({
   useEffect(() => {
     const generateQRCode = async () => {
       try {
-        // Use certificateRecord verification_code if available (for viewing existing certificates)
-        // Otherwise use form.verification_code (for preview mode, which will be undefined)
-        const verificationCode = certificateRecord?.verificationCode
         if (verificationCode) {
           const verificationUrl = `${brand.verifyBaseUrl}/verify/${verificationCode}`
           const QRCode = (await import('qrcode')).default
@@ -188,7 +156,14 @@ export function CertificatePrint({
     }
 
     generateQRCode()
-  }, [certificateRecord?.verificationCode])
+  }, [verificationCode])
+
+  // Print once the QR of a certificate that was just issued is on the page.
+  useEffect(() => {
+    if (!printAfterSave || !qrCode) return
+    setPrintAfterSave(false)
+    window.print()
+  }, [printAfterSave, qrCode])
 
   const set = <K extends keyof CertFormState>(key: K, value: CertFormState[K]) =>
     setForm((prev) => ({ ...prev, [key]: value }))
@@ -211,7 +186,8 @@ export function CertificatePrint({
     setSaveError(null)
   }
 
-  const persistCertificate = async () => {
+  const persistCertificate = async (): Promise<boolean> => {
+    if (verificationCode) return true
     try {
       setSaveStatus('saving')
       setSaveError(null)
@@ -236,12 +212,25 @@ export function CertificatePrint({
         const body = await res.json().catch(() => ({ error: 'Failed to save certificate' }))
         throw new Error(apiErrorMessage(body, `Request failed (${res.status})`))
       }
+      const saved = (await res.json().catch(() => null)) as { data?: CertificateRecord } | null
+      setVerificationCode(saved?.data?.verificationCode ?? null)
       setSaveStatus('saved')
       setTimeout(() => setSaveStatus('idle'), 4000)
+      return true
     } catch (err) {
       setSaveStatus('error')
       setSaveError(err instanceof Error ? err.message : 'Unknown error')
+      return false
     }
+  }
+
+  // A printed certificate must be verifiable, so printing issues it first (once).
+  const printCertificate = async () => {
+    if (verificationCode) {
+      window.print()
+      return
+    }
+    if (await persistCertificate()) setPrintAfterSave(true)
   }
 
   const certificate = (
@@ -278,8 +267,17 @@ export function CertificatePrint({
         <div className="cert-name-rule" />
 
         <div className="cert-body">
-          has successfully completed the <b>{form.courseName || 'Course Name'}</b> Program at <b>{brand.legalName}</b>,
-          from <b>{fmtDate(form.startDate)}</b> to <b>{fmtDate(form.endDate)}</b>.
+          has successfully completed the <b>{form.courseName || 'Course Name'}</b> Program at <b>{brand.legalName}</b>
+          {form.startDate && form.endDate ? (
+            <>
+              , from <b>{fmtDate(form.startDate)}</b> to <b>{fmtDate(form.endDate)}</b>
+            </>
+          ) : form.endDate ? (
+            <>
+              , on <b>{fmtDate(form.endDate)}</b>
+            </>
+          ) : null}
+          .
         </div>
 
         <div className="cert-note">
@@ -297,24 +295,21 @@ export function CertificatePrint({
               <div className="lbl">Certificate ID</div>
               <div className="val">{form.certId || genCertId()}</div>
             </div>
+            {verificationCode ? (
+              <div className="cert-qr">
+                {qrCode ? (
+                  <img src={qrCode} alt="Scan to verify this certificate" />
+                ) : (
+                  <div className="cert-qr-blank" />
+                )}
+                <span>Scan to verify</span>
+              </div>
+            ) : null}
             <div className="id-block" style={{ textAlign: 'right' }}>
               <div className="lbl">Date Issued</div>
               <div className="val">{fmtDate(form.issueDate)}</div>
             </div>
           </div>
-
-          {/* Verification QR Code */}
-          {certificateRecord?.verificationCode ? (
-            <div className="verification-section">
-              <div className="lbl">Verify Certificate</div>
-              <div className="qr-code-container">
-                {qrCode ? <img src={qrCode} alt="Verify certificate" className="qr-code" /> : null}
-              </div>
-              <div className="verification-url">
-                {brand.verifyBaseUrl}/verify/{certificateRecord?.verificationCode || 'CODE'}
-              </div>
-            </div>
-          ) : null}
 
           <div className="sig-row">
             <div className="sig-block">
@@ -508,14 +503,24 @@ export function CertificatePrint({
                 <Button
                   variant="default"
                   className="edit-btn edit-btn-cert-primary"
-                  onClick={persistCertificate}
-                  disabled={saveStatus === 'saving'}
+                  onClick={() => void persistCertificate()}
+                  disabled={saveStatus === 'saving' || Boolean(verificationCode)}
                 >
                   <SaveIcon size={16} className="mr-2" />
-                  {saveStatus === 'saving' ? 'Saving…' : 'Save Certificate'}
+                  {saveStatus === 'saving' ? 'Saving…' : verificationCode ? 'Saved' : 'Save Certificate'}
                 </Button>
-                <Button variant="default" className="edit-btn" onClick={() => window.print()}>
-                  <Printer size={16} className="mr-2" /> Print
+                <Button
+                  variant="default"
+                  className="edit-btn"
+                  onClick={() => void printCertificate()}
+                  disabled={saveStatus === 'saving'}
+                  title={
+                    verificationCode
+                      ? undefined
+                      : 'Saves the certificate first, so the print carries its verification QR'
+                  }
+                >
+                  <Printer size={16} className="mr-2" /> {verificationCode ? 'Print' : 'Save & Print'}
                 </Button>
                 <Button
                   variant="ghost"

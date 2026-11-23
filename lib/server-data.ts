@@ -74,6 +74,8 @@ export function paymentFromRow(row: Record<string, unknown>): Payment {
       month: 'short',
       year: 'numeric',
     }),
+    // ISO date (YYYY-MM-DD) for forms and printing; `date` above is the display form.
+    paymentDate: row.payment_date ? String(row.payment_date).slice(0, 10) : undefined,
     amount,
     invoice: String(row.invoice ?? ''),
     studentId: Number(row.student_register_id ?? row.student_id),
