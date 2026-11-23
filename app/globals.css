@@ -3667,6 +3667,7 @@ td strong {
 }
 
 .ttk-invoice-top {
+  position: relative;
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
@@ -3689,7 +3690,7 @@ td strong {
   font-size: 10px;
   font-weight: 700;
 }
-.ttk-invoice-top > b {
+.ttk-copy-col > b {
   background: #0f172a;
   color: #fff;
   padding: 4px 10px;
@@ -3725,26 +3726,22 @@ td strong {
   color: #0f172a;
   margin: 0 0 4px;
 }
-/* Verification QR: at the right of the logo row, so it adds no height to a half-page copy. */
-.ttk-invoice-qr {
-  margin-left: auto;
-  flex-shrink: 0;
+/* Copy label with the verification QR centred below it. Positioned out of the flow over the empty
+   right side of the logo row, so each half-page copy keeps its height. */
+.ttk-copy-col {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
+  gap: 8px;
 }
-.ttk-invoice-qr img,
-.ttk-invoice-qr .ttk-invoice-qr-blank {
-  width: 58px;
-  height: 58px;
+.ttk-copy-col .ttk-invoice-qr {
+  width: 108px;
+  height: 108px;
   display: block;
-}
-.ttk-invoice-qr span {
-  font-size: 8px;
-  font-weight: 600;
-  letter-spacing: 0.3px;
-  color: #475569;
 }
 .ttk-invoice-brand p,
 .ttk-invoice-brand strong {

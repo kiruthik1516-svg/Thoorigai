@@ -21,7 +21,7 @@ export const runtime = 'nodejs'
 export const maxDuration = 15
 
 // F-33: bump whenever the PDF layout or tax presentation changes, so cached copies are regenerated.
-const INVOICE_TEMPLATE_VERSION = '2026-11-23.3'
+const INVOICE_TEMPLATE_VERSION = '2026-11-23.4'
 
 async function getCachedPdf(cachePath: string): Promise<Uint8Array | null> {
   try {
@@ -187,15 +187,10 @@ async function getInvoicePdf(supabase: SupabaseClient, context: { params: Promis
     ['Course', student?.course ?? 'Course fee payment'],
     ['Payment mode', payment.method],
   ]
-  // Verification QR at the right of the details block (the rows end before x = 460), clear of the table.
+  // Verification QR at the right of the details block (the rows end before x = 450), clear of the table.
   if (qrCodeImage) {
-    const qrSize = 80
-    const qrX = 547 - qrSize
-    const qrY = 600
-    page.drawImage(qrCodeImage, { x: qrX, y: qrY, width: qrSize, height: qrSize })
-    const label = 'Scan to verify'
-    const labelWidth = regular.widthOfTextAtSize(label, 8)
-    page.drawText(label, { x: qrX + (qrSize - labelWidth) / 2, y: qrY - 11, size: 8, font: regular, color: navy })
+    const qrSize = 96
+    page.drawImage(qrCodeImage, { x: 547 - qrSize, y: 588, width: qrSize, height: qrSize })
   }
 
   let y = 700

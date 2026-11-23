@@ -522,7 +522,16 @@ function InvoiceCopy({
           </h2>
           <span>Receipt ID - [ {form.receiptId || '—'} ]</span>
         </div>
-        <b>{copy}</b>
+        {/* Copy label with the verification QR centred below it, out of the flow so it adds no height. */}
+        <div className="ttk-copy-col">
+          <b>{copy}</b>
+          {verificationCode &&
+            (qrCode ? (
+              <img className="ttk-invoice-qr" src={qrCode} alt="Verification QR code for this invoice" />
+            ) : (
+              <div className="ttk-invoice-qr" />
+            ))}
+        </div>
       </div>
       <header className="ttk-invoice-brand">
         <div className="ttk-invoice-logo">
@@ -534,12 +543,6 @@ function InvoiceCopy({
           <p>Phone: 9244575008 | {brand.tagline}</p>
           <strong>GST No: {gstin || 'GSTIN not configured'}</strong>
         </div>
-        {verificationCode && (
-          <div className="ttk-invoice-qr">
-            {qrCode ? <img src={qrCode} alt="Scan to verify this invoice" /> : <div className="ttk-invoice-qr-blank" />}
-            <span>Scan to verify</span>
-          </div>
-        )}
       </header>
       <div className="ttk-invoice-meta">
         <span>

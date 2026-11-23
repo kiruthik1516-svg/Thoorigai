@@ -159,12 +159,25 @@
     min-height: 142mm !important;
     page-break-inside: avoid !important;
     padding: 8mm 13mm 5mm !important;
-    border-bottom: 2px dashed #b9bec8 !important;
+    border-bottom: 0 !important;
     font-family: Arial, Helvetica, sans-serif !important;
     color: #151515 !important;
   }
   .ttk-invoice-copy:last-child {
     border-bottom: 0 !important;
+  }
+  /* The cut line: dotted, at exactly half the A4 page (148.5mm), across the full width. */
+  .ttk-invoice-paper {
+    position: relative !important;
+  }
+  .ttk-invoice-paper::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 50%;
+    border-top: 1.5px dotted #64748b;
+    pointer-events: none;
   }
   /* Each copy is exactly half an A4 page: keep the QR, balance line and signature inside it. */
   .ttk-invoice-top {
