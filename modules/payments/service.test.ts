@@ -164,6 +164,7 @@ describe('payment service', () => {
         paid: 100,
         status: 'Pending',
       },
+      balanceAfter: 100,
     })
     expect(mocks.paymentFromRow).toHaveBeenCalledWith(
       expect.objectContaining({ verification_code: 'verify-1', student_name: 'Asha' }),

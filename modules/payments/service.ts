@@ -1,6 +1,7 @@
 import 'server-only'
 import { createClient } from '@/lib/supabase/server'
 import { paymentFromRow } from '@/lib/server-data'
+import { balanceAfterPayment } from './balance'
 import { listPayments } from '@/lib/server-data'
 import { paiseToRupees } from '@/lib/money'
 import { createHash } from 'node:crypto'
@@ -144,6 +145,13 @@ export async function getPaymentByInvoice(invoice: string) {
     .maybeSingle()
   if (documentError) throw documentError
   const studentRow = Array.isArray(data.students) ? data.students[0] : data.students
+  // The balance printed on an invoice is what was left after this payment, not today's balance.
+  const { data: ledger, error: ledgerError } = await supabase
+    .from('payments')
+    .select('id, amount, payment_date, instance_number, created_at')
+    .eq('student_id', data.student_id)
+  if (ledgerError) throw ledgerError
+  const balanceAfter = studentRow ? balanceAfterPayment(String(data.id), ledger ?? [], studentRow) : undefined
   const payment = paymentFromRow({
     ...data,
     student_name: studentRow?.name,
@@ -163,5 +171,5 @@ export async function getPaymentByInvoice(invoice: string) {
         status: Number(studentRow.paid) >= Number(studentRow.total) ? ('Fully Paid' as const) : ('Pending' as const),
       }
     : null
-  return { payment, student }
+  return { payment, student, balanceAfter }
 }

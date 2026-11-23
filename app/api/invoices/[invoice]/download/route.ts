@@ -8,19 +8,20 @@ import { paymentFromRow, studentFromRow } from '@/lib/server-data'
 import { unexpectedApiError } from '@/lib/api-response'
 import QRCode from 'qrcode'
 import { brand } from '@/lib/brand'
-import { formatINR } from '@/lib/money'
+import { formatINR, rupeesToPaise } from '@/lib/money'
 import { rolesFor } from '@/lib/auth/permissions'
 import { withApi } from '@/lib/http/handler'
 import { z } from 'zod'
 import { createHash } from 'node:crypto'
 import { getSupabaseAdminClient } from '@/lib/supabase/admin'
+import { balanceAfterPayment } from '@/modules/payments/balance'
 import { logger } from '@/lib/logger'
 
 export const runtime = 'nodejs'
 export const maxDuration = 15
 
 // F-33: bump whenever the PDF layout or tax presentation changes, so cached copies are regenerated.
-const INVOICE_TEMPLATE_VERSION = '2026-11-23.1'
+const INVOICE_TEMPLATE_VERSION = '2026-11-23.2'
 
 async function getCachedPdf(cachePath: string): Promise<Uint8Array | null> {
   try {
@@ -88,6 +89,12 @@ async function getInvoicePdf(supabase: SupabaseClient, context: { params: Promis
     .maybeSingle()
   if (studentError) return unexpectedApiError(studentError, 'Failed to load invoice student')
   const student = studentRow ? studentFromRow(studentRow) : undefined
+  const { data: ledger, error: ledgerError } = await supabase
+    .from('payments')
+    .select('id, amount, payment_date, instance_number, created_at')
+    .eq('student_id', paymentRow.student_id)
+  if (ledgerError) return unexpectedApiError(ledgerError, 'Failed to load invoice balance')
+  const balanceAfter = studentRow ? balanceAfterPayment(String(paymentRow.id), ledger ?? [], studentRow) : undefined
 
   const { data: gstSettings, error: gstError } = await supabase
     .from('gst_settings')
@@ -107,6 +114,7 @@ async function getInvoicePdf(supabase: SupabaseClient, context: { params: Promis
         studentRow,
         gstin,
         verificationCode: verification?.verification_code ?? null,
+        balanceAfter: balanceAfter ?? null,
       }),
     )
     .digest('hex')
@@ -218,6 +226,15 @@ async function getInvoicePdf(supabase: SupabaseClient, context: { params: Promis
       color: rgb(0.75, 0.75, 0.75),
     })
     y -= 28
+  }
+  if (balanceAfter !== undefined) {
+    page.drawText('Balance to be paid:', { x: 60, y: y + 2, size: 10, font: bold, color: navy })
+    page.drawText(balanceAfter > 0 ? money(rupeesToPaise(balanceAfter)) : 'Nil (course fees fully paid)', {
+      x: 170,
+      y: y + 2,
+      size: 10,
+      font: regular,
+    })
   }
   page.drawText('This is a computer-generated invoice and does not require a signature.', {
     x: 48,

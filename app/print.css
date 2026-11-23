@@ -158,13 +158,24 @@
   .ttk-invoice-copy {
     min-height: 142mm !important;
     page-break-inside: avoid !important;
-    padding: 12mm 14mm 10mm !important;
+    padding: 8mm 13mm 5mm !important;
     border-bottom: 2px dashed #b9bec8 !important;
     font-family: Arial, Helvetica, sans-serif !important;
     color: #151515 !important;
   }
   .ttk-invoice-copy:last-child {
     border-bottom: 0 !important;
+  }
+  /* Each copy is exactly half an A4 page: keep the QR, balance line and signature inside it. */
+  .ttk-invoice-top {
+    margin-bottom: 4px !important;
+  }
+  .ttk-invoice-meta {
+    margin-top: 5px !important;
+    margin-bottom: 5px !important;
+  }
+  .ttk-invoice-terms li {
+    margin-bottom: 1px !important;
   }
 }
 @media (max-width: 800px) {

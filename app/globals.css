@@ -3736,8 +3736,8 @@ td strong {
 }
 .ttk-invoice-qr img,
 .ttk-invoice-qr .ttk-invoice-qr-blank {
-  width: 72px;
-  height: 72px;
+  width: 58px;
+  height: 58px;
   display: block;
 }
 .ttk-invoice-qr span {
@@ -3822,9 +3822,22 @@ td strong {
   font-weight: 700;
   margin: 8px 0;
 }
-.ttk-invoice-terms {
+.ttk-balance-due {
+  color: #0f172a;
+  font-size: 10px;
+  margin: -4px 0 8px;
+}
+/* Terms on the left, signature on the right: each copy is exactly half an A4 page, and a signature
+   below the terms was cut off on the office copy. */
+.ttk-invoice-footer {
+  display: flex;
+  align-items: flex-end;
+  gap: 16px;
   border-top: 1px solid #e2e8f0;
   padding-top: 6px;
+}
+.ttk-invoice-terms {
+  flex: 1;
   font-size: 8px;
   color: #64748b;
 }
@@ -3836,12 +3849,11 @@ td strong {
   margin-bottom: 2px;
 }
 .ttk-authorized {
+  flex-shrink: 0;
   text-align: right;
   font-size: 9px;
   color: #475569;
-  margin-top: auto;
-  padding-top: 16px;
-  padding-bottom: 4mm;
+  padding-bottom: 2px;
 }
 .ttk-authorized::before {
   content: '';
