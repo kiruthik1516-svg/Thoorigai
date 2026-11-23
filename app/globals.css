@@ -3260,6 +3260,72 @@ td strong {
     display: none;
   }
 }
+
+/* Certificate printing: only the issued copy in .cert-print-root, scaled to exactly one A4 page.
+   (These rules used to be injected at runtime, which the Content Security Policy blocks.) */
+@media print {
+  body:has(.cert-print-root) > *:not(.cert-print-root) {
+    display: none !important;
+  }
+  html:has(.cert-print-root),
+  body:has(.cert-print-root) {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+  }
+  .cert-print-root {
+    display: block !important;
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 210mm;
+    height: 297mm;
+    overflow: hidden;
+    background: #fffdf8;
+    break-after: avoid-page;
+  }
+  .cert-print-root .ttk-certificate {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 620px;
+    height: 877px;
+    margin: 0;
+    box-shadow: none;
+    /* 620 x 877 px design to 210 x 297 mm (793.7 x 1122.5 px). */
+    transform: scale(1.28);
+    transform-origin: top left;
+  }
+  .cert-print-root,
+  .cert-print-root * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
+
+/* Verification QR: small, between the certificate ID and the issue date. */
+.ttk-certificate .cert-qr {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+}
+.ttk-certificate .cert-qr img,
+.ttk-certificate .cert-qr .cert-qr-blank {
+  width: 56px;
+  height: 56px;
+  display: block;
+}
+.ttk-certificate .cert-qr span {
+  font-size: 8px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  font-weight: 600;
+  color: var(--ttk-muted);
+}
 .ttk-certificate {
   --ttk-navy: #0e1c3d;
   --ttk-navy-deep: #081227;
@@ -3372,7 +3438,7 @@ td strong {
 
 .ttk-certificate .cert-logo {
   margin-top: 6px;
-  width: 164px;
+  width: 128px;
   height: auto;
   display: flex;
   align-items: center;
@@ -3385,7 +3451,7 @@ td strong {
 }
 
 .ttk-certificate .cert-title {
-  margin-top: 22px;
+  margin-top: 16px;
   font-family: var(--font-playfair), Georgia, serif;
   font-weight: 800;
   font-size: 33px;
@@ -3658,6 +3724,27 @@ td strong {
   font-size: 18px;
   color: #0f172a;
   margin: 0 0 4px;
+}
+/* Verification QR: at the right of the logo row, so it adds no height to a half-page copy. */
+.ttk-invoice-qr {
+  margin-left: auto;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+.ttk-invoice-qr img,
+.ttk-invoice-qr .ttk-invoice-qr-blank {
+  width: 72px;
+  height: 72px;
+  display: block;
+}
+.ttk-invoice-qr span {
+  font-size: 8px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  color: #475569;
 }
 .ttk-invoice-brand p,
 .ttk-invoice-brand strong {

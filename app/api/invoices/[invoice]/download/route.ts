@@ -20,7 +20,7 @@ export const runtime = 'nodejs'
 export const maxDuration = 15
 
 // F-33: bump whenever the PDF layout or tax presentation changes, so cached copies are regenerated.
-const INVOICE_TEMPLATE_VERSION = '2026-11-18.1'
+const INVOICE_TEMPLATE_VERSION = '2026-11-23.1'
 
 async function getCachedPdf(cachePath: string): Promise<Uint8Array | null> {
   try {
@@ -171,6 +171,17 @@ async function getInvoicePdf(supabase: SupabaseClient, context: { params: Promis
     ['Course', student?.course ?? 'Course fee payment'],
     ['Payment mode', payment.method],
   ]
+  // Verification QR at the right of the details block (the rows end before x = 460), clear of the table.
+  if (qrCodeImage) {
+    const qrSize = 80
+    const qrX = 547 - qrSize
+    const qrY = 600
+    page.drawImage(qrCodeImage, { x: qrX, y: qrY, width: qrSize, height: qrSize })
+    const label = 'Scan to verify'
+    const labelWidth = regular.widthOfTextAtSize(label, 8)
+    page.drawText(label, { x: qrX + (qrSize - labelWidth) / 2, y: qrY - 11, size: 8, font: regular, color: navy })
+  }
+
   let y = 700
   for (const [label, value] of rows) {
     page.drawText(`${label}:`, { x: 55, y, size: 10, font: bold, color: navy })
@@ -178,23 +189,6 @@ async function getInvoicePdf(supabase: SupabaseClient, context: { params: Promis
     y -= 23
   }
   y -= 12
-
-  // Draw QR code for verification (positioned on the right side)
-  if (qrCodeImage) {
-    const qrSize = 80
-    const qrX = 547 - qrSize - 48 // Right-aligned with margin
-    const qrY = y - qrSize + 20 // Position above the tax section
-    page.drawImage(qrCodeImage, {
-      x: qrX,
-      y: qrY,
-      width: qrSize,
-      height: qrSize,
-    })
-
-    // Add label for QR code
-    page.drawText('Verify Invoice', { x: qrX, y: qrY - 10, size: 8, font: regular, color: navy })
-    page.drawText(payment.verification_code || '', { x: qrX, y: qrY - 20, size: 8, font: regular, color: navy })
-  }
 
   page.drawRectangle({ x: 48, y: y - 26, width: 499, height: 28, color: navy })
   page.drawText('Description', { x: 60, y: y - 17, size: 10, font: bold, color: rgb(1, 1, 1) })
