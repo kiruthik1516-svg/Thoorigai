@@ -3770,20 +3770,34 @@ td strong {
   grid-template-columns: 1fr 120px;
   gap: 12px;
 }
+/* The dashboard's generic table rules (13px cells, 10px/14px padding, uppercase 11-12px headers, a
+   12px !important header size on touch screens) made each row much taller and pushed the terms and
+   signature off the half-page copy. Every size here is pinned so the invoice is identical everywhere. */
 .ttk-invoice-grid table {
   border-collapse: collapse;
+  font-family: inherit;
   font-size: 10px;
+  line-height: 1.35;
+  white-space: normal;
 }
 .ttk-invoice-grid th {
   background: #0f172a;
   color: #fff;
-  padding: 6px 8px;
+  font-size: 10px !important;
+  font-weight: 700;
+  letter-spacing: 0;
+  line-height: 1.35;
+  padding: 5px 8px;
   text-transform: none;
+  border-bottom: 0;
 }
 .ttk-invoice-grid td {
-  padding: 6px 8px;
+  font-size: 10px;
+  line-height: 1.35;
+  padding: 5px 8px;
   border: 1px solid #e2e8f0;
   color: #0f172a;
+  vertical-align: middle;
 }
 .ttk-invoice-grid td:last-child,
 .ttk-invoice-grid th:last-child {
@@ -3830,6 +3844,7 @@ td strong {
   display: flex;
   align-items: flex-end;
   gap: 16px;
+  margin-top: auto;
   border-top: 1px solid #e2e8f0;
   padding-top: 6px;
 }

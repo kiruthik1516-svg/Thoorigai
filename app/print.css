@@ -156,9 +156,8 @@
     margin: 0 auto !important;
   }
   .ttk-invoice-copy {
-    min-height: 142mm !important;
     page-break-inside: avoid !important;
-    padding: 8mm 13mm 5mm !important;
+    padding: 7mm 13mm 6mm !important;
     border-bottom: 0 !important;
     font-family: Arial, Helvetica, sans-serif !important;
     color: #151515 !important;
@@ -191,7 +190,9 @@
     margin-bottom: 1px !important;
   }
 }
-@media (max-width: 800px) {
+/* Screen only: a printed A4 page is ~794 CSS px wide, so a bare (max-width: 800px) query also matched
+   while printing and gave the invoice its phone padding. */
+@media screen and (max-width: 800px) {
   .preview-page .ttk-certificate {
     width: 100% !important;
     min-height: auto !important;
