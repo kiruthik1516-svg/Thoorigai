@@ -228,32 +228,30 @@ export function InvoicePrint({
 
   return (
     <div className="preview-page">
-      <div className="back-row">
-        <Button variant="secondary" onClick={onBack}>
-          <ArrowLeft size={16} className="mr-2" />
-          Back
-        </Button>
-      </div>
       <div className="preview-layout">
         <aside className="edit-sidebar edit-sidebar-light">
-          <div className="edit-sidebar-header edit-sidebar-header-light">
+          {/* Back sits in the header row (not above the layout) so the whole form fits without scrolling. */}
+          <div className="edit-sidebar-header edit-sidebar-header-light invoice-editor-header">
+            <Button variant="secondary" size="sm" onClick={onBack}>
+              <ArrowLeft size={16} />
+              Back
+            </Button>
             <h2 className="edit-form-heading">Invoice Details</h2>
-            <p className="edit-form-sub">Update the fields below — the invoice preview updates instantly.</p>
           </div>
 
           <div className="edit-sidebar-body invoice-editor-body">
+            {/* No "Invoice Details" section title: the header above already says it. */}
             <div className="edit-section">
-              <div className="edit-section-title">Invoice Details</div>
-              <label className="edit-label">
-                Invoice Number
-                <input
-                  type="text"
-                  value={form.invoiceNumber}
-                  onChange={(e) => set('invoiceNumber', e.target.value)}
-                  className="edit-input edit-input-light"
-                />
-              </label>
               <div className="edit-row2">
+                <label className="edit-label">
+                  Invoice Number
+                  <input
+                    type="text"
+                    value={form.invoiceNumber}
+                    onChange={(e) => set('invoiceNumber', e.target.value)}
+                    className="edit-input edit-input-light"
+                  />
+                </label>
                 <label className="edit-label">
                   Receipt ID
                   <input
@@ -263,6 +261,8 @@ export function InvoicePrint({
                     className="edit-input edit-input-light"
                   />
                 </label>
+              </div>
+              <div className="edit-row2">
                 <label className="edit-label">
                   Date
                   <input
@@ -272,11 +272,11 @@ export function InvoicePrint({
                     className="edit-input edit-input-light"
                   />
                 </label>
-              </div>
-              <div className="edit-label">
-                GSTIN
-                <div className="edit-input edit-input-light" aria-live="polite">
-                  {gstin || 'GSTIN not configured'}
+                <div className="edit-label">
+                  GSTIN
+                  <div className="edit-input edit-input-light" aria-live="polite">
+                    {gstin || 'GSTIN not configured'}
+                  </div>
                 </div>
               </div>
             </div>
@@ -315,62 +315,69 @@ export function InvoicePrint({
                   />
                 </label>
               </div>
-              <label className="edit-label">
-                Course Name
-                <select
-                  value={form.courseName}
-                  onChange={(e) => set('courseName', e.target.value)}
-                  className="edit-input edit-input-light"
-                >
-                  {COURSE_OPTIONS.map((c) => (
-                    <option key={c} value={c}>
-                      {c}
-                    </option>
-                  ))}
-                  <option value="custom">— Type custom course —</option>
-                </select>
-              </label>
-              {form.courseName === 'custom' && (
-                <input
-                  type="text"
-                  placeholder="Enter course name"
-                  value={form.courseCustom}
-                  onChange={(e) => set('courseCustom', e.target.value)}
-                  className="edit-input edit-input-light mt-2"
-                />
-              )}
+              <div className={form.courseName === 'custom' ? 'edit-row2' : undefined}>
+                <label className="edit-label">
+                  Course Name
+                  <select
+                    value={form.courseName}
+                    onChange={(e) => set('courseName', e.target.value)}
+                    className="edit-input edit-input-light"
+                  >
+                    {COURSE_OPTIONS.map((c) => (
+                      <option key={c} value={c}>
+                        {c}
+                      </option>
+                    ))}
+                    <option value="custom">— Type custom course —</option>
+                  </select>
+                </label>
+                {form.courseName === 'custom' && (
+                  <label className="edit-label">
+                    Custom Course
+                    <input
+                      type="text"
+                      placeholder="Enter course name"
+                      value={form.courseCustom}
+                      onChange={(e) => set('courseCustom', e.target.value)}
+                      className="edit-input edit-input-light"
+                    />
+                  </label>
+                )}
+              </div>
             </div>
 
             <div className="edit-section">
               <div className="edit-section-title">Payment Details</div>
-              <label className="edit-label">
-                Payment Type
-                <select
-                  value={form.paymentType}
-                  onChange={(e) => set('paymentType', e.target.value)}
-                  className="edit-input edit-input-light"
-                >
-                  {[...new Set([form.paymentType, ...PAYMENT_TYPES])].filter(Boolean).map((t) => (
-                    <option key={t} value={t}>
-                      {t}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="edit-label">
-                Gross Amount (before GST) ₹
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  placeholder="5084.75"
-                  value={form.grossAmount}
-                  onChange={(e) => set('grossAmount', e.target.value)}
-                  className="edit-input edit-input-light"
-                />
-              </label>
+              <div className="edit-row2">
+                <label className="edit-label">
+                  Payment Type
+                  <select
+                    value={form.paymentType}
+                    onChange={(e) => set('paymentType', e.target.value)}
+                    className="edit-input edit-input-light"
+                  >
+                    {[...new Set([form.paymentType, ...PAYMENT_TYPES])].filter(Boolean).map((t) => (
+                      <option key={t} value={t}>
+                        {t}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="edit-label">
+                  Amount ₹
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    placeholder="5000"
+                    value={form.grossAmount}
+                    onChange={(e) => set('grossAmount', e.target.value)}
+                    className="edit-input edit-input-light"
+                  />
+                </label>
+              </div>
               {gross > 0 && (
-                <div className="edit-amount-display">
+                <div className="edit-amount-display edit-amount-inline">
                   <div className="edit-amount-row">
                     <span>{isInclusive ? 'Total (incl. GST)' : 'Gross Amount'}</span>
                     <span>{money(taxableValue)}</span>
@@ -387,7 +394,7 @@ export function InvoicePrint({
                   </div>
                 </div>
               )}
-              <div className="edit-row2" style={{ marginTop: 10 }}>
+              <div className="edit-row2">
                 <label className="edit-label">
                   Payment Mode
                   <select
@@ -419,7 +426,7 @@ export function InvoicePrint({
           <div className="edit-sidebar-actions">
             <div className="edit-actions-row">
               <Button variant="default" className="edit-btn" onClick={() => window.print()}>
-                <Printer size={16} className="mr-2" /> Print / Save as PDF
+                <Printer size={16} className="mr-2" /> Print / PDF
               </Button>
               <Button variant="secondary" className="edit-btn" onClick={newInvoice}>
                 <Plus size={16} className="mr-2" /> New

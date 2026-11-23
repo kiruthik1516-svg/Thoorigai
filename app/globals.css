@@ -3081,8 +3081,78 @@ td strong {
   overflow-y: auto;
   min-height: 0;
 }
+/* The invoice form is laid out in paired rows so it fits without scrolling. If a very short
+   window still can't hold it, scroll instead of clipping: hidden here used to cut off Payment
+   Mode and Transaction ID. */
 .preview-page .invoice-editor-body {
-  overflow-y: hidden;
+  overflow-y: auto;
+}
+.preview-page .invoice-editor-header {
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+}
+.preview-page .invoice-editor-header .edit-form-heading {
+  margin: 0;
+}
+.preview-page .invoice-editor-body .edit-section {
+  margin-bottom: 8px;
+}
+.preview-page .invoice-editor-body .edit-label {
+  margin-top: 5px;
+}
+.preview-page .invoice-editor-body .edit-input {
+  padding: 4px 8px;
+}
+.preview-page .invoice-editor-body .edit-amount-inline .edit-amount-row {
+  font-size: 11px;
+  white-space: nowrap;
+}
+.preview-page .edit-sidebar:has(.invoice-editor-body) .edit-btn {
+  white-space: nowrap;
+}
+/* Short windows (a 768px laptop screen once tabs and the taskbar are counted): tighter rows. */
+@media (max-height: 700px) {
+  .preview-page .invoice-editor-body .edit-section {
+    margin-bottom: 4px;
+  }
+  .preview-page .invoice-editor-body .edit-section-title {
+    margin-bottom: 2px;
+    padding-bottom: 2px;
+  }
+  .preview-page .invoice-editor-body .edit-label {
+    margin-top: 2px;
+    margin-bottom: 0;
+    line-height: 1.3;
+  }
+  .preview-page .invoice-editor-body .edit-input {
+    padding: 3px 8px;
+    margin-top: 1px;
+  }
+  .preview-page .invoice-editor-body .edit-amount-inline {
+    margin-top: 4px !important;
+    padding: 4px 10px !important;
+  }
+}
+/* Preview pages fill the viewport: less padding around them leaves room for the form. */
+.content:has(> .preview-page) {
+  padding-top: 16px;
+  padding-bottom: 16px;
+}
+.preview-page .edit-amount-display.edit-amount-inline {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 2px 14px !important;
+  margin-top: 8px !important;
+  padding: 6px 10px !important;
+}
+.preview-page .edit-amount-inline .edit-amount-row {
+  gap: 6px;
+  border: 0;
+  margin: 0;
+  padding: 0 !important;
 }
 .preview-page .edit-section {
   margin-bottom: 10px;
