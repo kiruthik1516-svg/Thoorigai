@@ -80,6 +80,7 @@ export function InvoicePrint({
   gstRate: currentGstRate = 18,
   gstin,
   courses,
+  balanceAfter,
 }: {
   payment: Payment
   student?: Student
@@ -87,6 +88,8 @@ export function InvoicePrint({
   gstRate?: number
   gstin: string | null
   courses?: Course[]
+  /** Rupees still due after this payment (printed under the amount in words). */
+  balanceAfter?: number
 }) {
   const invoiceStudent = student ?? {
     registerId: payment.studentId,
@@ -447,6 +450,7 @@ export function InvoicePrint({
                   gstin={gstin}
                   verificationCode={payment.verification_code}
                   qrCode={qrCode}
+                  balanceAfter={balanceAfter}
                   copy="Customer Copy"
                 />
                 <InvoiceCopy
@@ -460,6 +464,7 @@ export function InvoicePrint({
                   gstin={gstin}
                   verificationCode={payment.verification_code}
                   qrCode={qrCode}
+                  balanceAfter={balanceAfter}
                   copy="Office Copy"
                 />
               </article>
@@ -487,6 +492,7 @@ function InvoiceCopy({
   verificationCode,
   qrCode,
   copy,
+  balanceAfter,
 }: {
   form: InvoiceFormState
   taxableValue: number
@@ -499,6 +505,7 @@ function InvoiceCopy({
   verificationCode?: string
   qrCode: string | null
   copy: string
+  balanceAfter?: number
 }) {
   const course = effectiveCourse(form) || '—'
   return (
@@ -588,25 +595,32 @@ function InvoiceCopy({
         </div>
       </div>
       <p className="ttk-amount-words">{grandTotal > 0 ? amountInWords(rupeesToPaise(grandTotal)) : '—'}</p>
-      <div className="ttk-invoice-terms">
-        <b>Terms &amp; Conditions</b>
-        <ol>
-          {gstRate > 0 ? (
-            isInclusive ? (
-              <li>Course fee is inclusive of GST ({gstRate}%).</li>
+      {balanceAfter !== undefined && (
+        <p className="ttk-balance-due">
+          Balance to be paid: <b>{balanceAfter > 0 ? money(balanceAfter) : 'Nil (course fees fully paid)'}</b>
+        </p>
+      )}
+      <div className="ttk-invoice-footer">
+        <div className="ttk-invoice-terms">
+          <b>Terms &amp; Conditions</b>
+          <ol>
+            {gstRate > 0 ? (
+              isInclusive ? (
+                <li>Course fee is inclusive of GST ({gstRate}%).</li>
+              ) : (
+                <li>GST ({gstRate}%) is charged on top of the base course fee.</li>
+              )
             ) : (
-              <li>GST ({gstRate}%) is charged on top of the base course fee.</li>
-            )
-          ) : (
-            <li>No GST applicable on this invoice.</li>
-          )}
-          <li>Students must pay the full fees before completing the course.</li>
-          <li>Agreed instalment dates help students complete the course on schedule.</li>
-          <li>Registration fees are non-refundable once paid.</li>
-          <li>Refunds are not allowed under normal circumstances.</li>
-        </ol>
+              <li>No GST applicable on this invoice.</li>
+            )}
+            <li>Students must pay the full fees before completing the course.</li>
+            <li>Agreed instalment dates help students complete the course on schedule.</li>
+            <li>Registration fees are non-refundable once paid.</li>
+            <li>Refunds are not allowed under normal circumstances.</li>
+          </ol>
+        </div>
+        <div className="ttk-authorized">Authorized Signature</div>
       </div>
-      <div className="ttk-authorized">Authorized Signature</div>
     </section>
   )
 }

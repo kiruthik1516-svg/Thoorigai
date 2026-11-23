@@ -19,6 +19,7 @@ export default async function InvoicePage({ params }: PageProps<'/invoices/[invo
     <InvoicePrintDynamic
       payment={result.payment}
       student={result.student}
+      balanceAfter={result.balanceAfter}
       gstRate={gst?.enabled ? gst.rate : 0}
       gstin={gst?.gstin ?? null}
       courses={courses}
