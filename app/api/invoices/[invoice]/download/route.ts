@@ -21,7 +21,7 @@ export const runtime = 'nodejs'
 export const maxDuration = 15
 
 // F-33: bump whenever the PDF layout or tax presentation changes, so cached copies are regenerated.
-const INVOICE_TEMPLATE_VERSION = '2026-11-23.2'
+const INVOICE_TEMPLATE_VERSION = '2026-11-23.3'
 
 async function getCachedPdf(cachePath: string): Promise<Uint8Array | null> {
   try {
@@ -168,10 +168,18 @@ async function getInvoicePdf(supabase: SupabaseClient, context: { params: Promis
     // Continue without QR code if generation fails
   }
   page.drawText(brand.legalName, { x: 48, y: 780, size: 22, font: bold, color: navy })
-  page.drawText('COURSE PAYMENT TAX INVOICE', { x: 48, y: 754, size: 11, font: bold, color: gold })
+  // Imported opening balances (OPENING-<register id>) were never GST invoices: they print as receipts.
+  const isReceipt = payment.invoice.startsWith('OPENING-')
+  page.drawText(isReceipt ? 'PAYMENT RECEIPT' : 'COURSE PAYMENT TAX INVOICE', {
+    x: 48,
+    y: 754,
+    size: 11,
+    font: bold,
+    color: gold,
+  })
   page.drawLine({ start: { x: 48, y: 740 }, end: { x: 547, y: 740 }, thickness: 1.5, color: navy })
   const rows = [
-    ['Invoice', payment.invoice],
+    [isReceipt ? 'Reference' : 'Invoice', payment.invoice],
     ['Receipt', payment.id],
     ['Date', payment.date],
     ['Student', student?.name ?? payment.student],
@@ -236,7 +244,7 @@ async function getInvoicePdf(supabase: SupabaseClient, context: { params: Promis
       font: regular,
     })
   }
-  page.drawText('This is a computer-generated invoice and does not require a signature.', {
+  page.drawText(`This is a computer-generated ${isReceipt ? 'receipt' : 'invoice'} and does not require a signature.`, {
     x: 48,
     y: 90,
     size: 9,

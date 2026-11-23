@@ -476,6 +476,11 @@ export function InvoicePrint({
   )
 }
 
+/** Imported opening balances (OPENING-<register id>) were never GST invoices: they print as receipts. */
+export function isPaymentReceipt(documentNumber: string) {
+  return documentNumber.startsWith('OPENING-')
+}
+
 function effectiveCourse(form: InvoiceFormState) {
   return form.courseName === 'custom' ? form.courseCustom : form.courseName
 }
@@ -512,7 +517,9 @@ function InvoiceCopy({
     <section className="ttk-invoice-copy">
       <div className="ttk-invoice-top">
         <div>
-          <h2>INVOICE - {form.invoiceNumber || '—'}</h2>
+          <h2>
+            {isPaymentReceipt(form.invoiceNumber) ? 'PAYMENT RECEIPT' : 'INVOICE'} - {form.invoiceNumber || '—'}
+          </h2>
           <span>Receipt ID - [ {form.receiptId || '—'} ]</span>
         </div>
         <b>{copy}</b>
@@ -611,7 +618,7 @@ function InvoiceCopy({
                 <li>GST ({gstRate}%) is charged on top of the base course fee.</li>
               )
             ) : (
-              <li>No GST applicable on this invoice.</li>
+              <li>No GST applicable on this {isPaymentReceipt(form.invoiceNumber) ? 'receipt' : 'invoice'}.</li>
             )}
             <li>Students must pay the full fees before completing the course.</li>
             <li>Agreed instalment dates help students complete the course on schedule.</li>
