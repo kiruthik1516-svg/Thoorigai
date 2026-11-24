@@ -6,6 +6,7 @@ import type { Student, Payment, Course, CourseCategory } from '@/lib/types'
 import type { AcademicReportData } from '@/modules/reports/service'
 import { ReportsView } from '@/modules/reports/components/ReportsView'
 import { StaffReportsView } from '@/modules/reports/components/StaffReportsView'
+import { useReportDateRange } from '@/modules/reports/components/report/dateRange'
 
 interface AdminReportsClientProps {
   students: Student[]
@@ -23,6 +24,8 @@ export function AdminReportsClient({
   courses = [],
 }: AdminReportsClientProps) {
   const [activeView, setActiveView] = useState<'financial' | 'staff'>('financial')
+  // One range for both sections, so switching tabs keeps the selected dates.
+  const { range, setRange } = useReportDateRange()
 
   useEffect(() => {
     try {
@@ -129,11 +132,25 @@ export function AdminReportsClient({
       {/* Active Panel View */}
       {activeView === 'financial' ? (
         <div id="admin-reports-financial-panel" role="tabpanel" aria-labelledby="admin-reports-toggle-financial">
-          <ReportsView students={students} payments={payments} categories={categories} courses={courses} />
+          <ReportsView
+            students={students}
+            payments={payments}
+            categories={categories}
+            courses={courses}
+            dateRange={range}
+            onDateRangeChange={setRange}
+          />
         </div>
       ) : (
         <div id="admin-reports-staff-panel" role="tabpanel" aria-labelledby="admin-reports-toggle-staff">
-          <StaffReportsView students={students} academicData={academicData} categories={categories} courses={courses} />
+          <StaffReportsView
+            students={students}
+            academicData={academicData}
+            categories={categories}
+            courses={courses}
+            dateRange={range}
+            onDateRangeChange={setRange}
+          />
         </div>
       )}
     </div>

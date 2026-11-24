@@ -14,11 +14,12 @@ import {
   Filter,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import Link from 'next/link'
 import type { Student, Course, CourseCategory } from '@/lib/types'
 import type { AcademicReportData } from '@/modules/reports/service'
 import { KpiCard } from '@/components/ui/KpiCard'
 import { csvCell } from '@/lib/csv'
+import { ReportDateRangeBar } from './report/ReportDateRangeBar'
+import { useReportDateRange, type ReportDateRange } from './report/dateRange'
 
 function parseDate(dateString?: string): Date {
   if (!dateString) return new Date(0)
@@ -31,19 +32,23 @@ export function StaffReportsView({
   academicData,
   categories = [],
   courses = [],
+  dateRange,
+  onDateRangeChange,
 }: {
   students: Student[]
   academicData: AcademicReportData
   categories?: CourseCategory[]
   courses?: Course[]
+  /** Controlled range shared with the other report sections; defaults to the current month. */
+  dateRange?: ReportDateRange
+  onDateRangeChange?: (range: ReportDateRange) => void
 }) {
   const [activeTab, setActiveTab] = useState<'attendance' | 'assessments' | 'students'>('attendance')
-  const [startDateStr, setStartDateStr] = useState(() => {
-    const d = new Date()
-    d.setDate(d.getDate() - 30)
-    return d.toISOString().slice(0, 10)
-  })
-  const [endDateStr, setEndDateStr] = useState(() => new Date().toISOString().slice(0, 10))
+  const own = useReportDateRange()
+  const range = dateRange ?? own.range
+  const setRange = onDateRangeChange ?? own.setRange
+  const startDateStr = range.start
+  const endDateStr = range.end
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedCourseFilter, setSelectedCourseFilter] = useState('all')
 
@@ -195,73 +200,12 @@ export function StaffReportsView({
           </p>
         </div>
 
-        {/* Date Controls */}
-        <div className="flex flex-wrap items-center gap-2.5 p-1.5 bg-[var(--card)] rounded-full border border-[var(--border)] shadow-2xs">
-          <div className="flex items-center gap-1.5 text-xs text-[var(--mute)] px-2">
-            <Calendar size={14} className="text-[var(--mute)]" />
-            <input
-              id="staff-rep-start-date"
-              aria-label="Start date"
-              type="date"
-              value={startDateStr}
-              onChange={(e) => setStartDateStr(e.target.value)}
-              className="text-xs border border-[var(--border)] rounded-full px-2.5 py-1 bg-[var(--card)] text-[var(--text)] focus:outline-none focus:ring-1 focus:ring-[var(--g1)]"
-            />
-            <span>to</span>
-            <input
-              id="staff-rep-end-date"
-              aria-label="End date"
-              type="date"
-              value={endDateStr}
-              onChange={(e) => setEndDateStr(e.target.value)}
-              className="text-xs border border-[var(--border)] rounded-full px-2.5 py-1 bg-[var(--card)] text-[var(--text)] focus:outline-none focus:ring-1 focus:ring-[var(--g1)]"
-            />
-          </div>
-
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => {
-                const now = new Date()
-                const past = new Date()
-                past.setDate(now.getDate() - 7)
-                setStartDateStr(past.toISOString().slice(0, 10))
-                setEndDateStr(now.toISOString().slice(0, 10))
-              }}
-              className="px-2.5 py-1 text-xs font-bold rounded-full bg-[var(--panel)] hover:bg-[var(--border)] text-[var(--text)] transition-colors"
-            >
-              7d
-            </button>
-            <button
-              onClick={() => {
-                const now = new Date()
-                const past = new Date()
-                past.setDate(now.getDate() - 30)
-                setStartDateStr(past.toISOString().slice(0, 10))
-                setEndDateStr(now.toISOString().slice(0, 10))
-              }}
-              className="px-2.5 py-1 text-xs font-bold rounded-full bg-[var(--panel)] hover:bg-[var(--border)] text-[var(--text)] transition-colors"
-            >
-              30d
-            </button>
-            <button
-              onClick={() => {
-                const now = new Date()
-                setStartDateStr(`${now.getFullYear()}-01-01`)
-                setEndDateStr(now.toISOString().slice(0, 10))
-              }}
-              className="px-2.5 py-1 text-xs font-bold rounded-full bg-[var(--panel)] hover:bg-[var(--border)] text-[var(--text)] transition-colors"
-            >
-              YTD
-            </button>
-          </div>
-          <Link
-            href={`/api/reports/export?startDate=${startDateStr}&endDate=${endDateStr}`}
-            className="inline-flex items-center gap-1.5 px-3.5 py-1 text-xs font-bold rounded-full border border-[var(--border)] bg-[var(--panel)] text-[var(--text)] hover:bg-[var(--card)] transition-colors shadow-2xs"
-          >
-            <Download size={13} />
-            Download CSV
-          </Link>
-        </div>
+        <ReportDateRangeBar
+          idPrefix="staff-rep"
+          range={range}
+          onChange={setRange}
+          downloadHref={`/api/reports/export?startDate=${startDateStr}&endDate=${endDateStr}`}
+        />
       </div>
 
       {/* KPI Cards */}

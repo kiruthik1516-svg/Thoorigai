@@ -1,13 +1,11 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import dynamic from 'next/dynamic'
 import {
   ArrowDownRight,
-  Calendar,
   CircleDollarSign,
   Clock,
-  FileText,
   GraduationCap,
   ShieldCheck,
   TrendingUp,
@@ -22,6 +20,8 @@ import { KpiCard } from '@/components/ui/KpiCard'
 import { computeReportMetrics } from './report/metrics'
 import { CategoryPerformanceTiers } from './report/CategoryPerformanceTiers'
 import { GenderDemographicsChart } from './report/GenderDemographicsChart'
+import { ReportDateRangeBar } from './report/ReportDateRangeBar'
+import { useReportDateRange, type ReportDateRange } from './report/dateRange'
 
 // recharts is large, so the charts load after the KPIs and filters are interactive (mobile audit).
 const chartPlaceholder = () => <div className="h-[260px] rounded-xl bg-[var(--panel)] animate-pulse" aria-hidden />
@@ -74,14 +74,22 @@ export function ReportsView({
   payments = [],
   categories = [],
   courses = [],
+  dateRange,
+  onDateRangeChange,
 }: {
   students: Student[]
   payments: Payment[]
   categories?: CourseCategory[]
   courses?: Course[]
+  /** Controlled range shared with the other report sections; defaults to the current month. */
+  dateRange?: ReportDateRange
+  onDateRangeChange?: (range: ReportDateRange) => void
 }) {
-  const [startDateStr, setStartDateStr] = useState(() => `${new Date().getFullYear()}-01-01`)
-  const [endDateStr, setEndDateStr] = useState(() => new Date().toISOString().slice(0, 10))
+  const own = useReportDateRange()
+  const range = dateRange ?? own.range
+  const setRange = onDateRangeChange ?? own.setRange
+  const startDateStr = range.start
+  const endDateStr = range.end
   const metrics = useMemo(
     () =>
       computeReportMetrics({ students, payments, categories, courses, startDate: startDateStr, endDate: endDateStr }),
@@ -99,47 +107,7 @@ export function ReportsView({
             Executive analytics — financial velocity, cohort enrollment, marketing channels, and collection insights.
           </p>
         </div>
-        <div className="flex items-center gap-3 flex-wrap min-w-0">
-          {/* Each label stays with its date, and the two pairs wrap on narrow screens. */}
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-2 p-1.5 rounded-2xl sm:rounded-full bg-[var(--card)] border border-[var(--border)] shadow-2xs min-w-0">
-            <div className="flex items-center gap-1.5 text-xs text-[var(--mute)]">
-              <label htmlFor="rep-start-date" className="text-xs font-bold text-[var(--mute)] pl-2 w-9">
-                From
-              </label>
-              <Calendar size={14} className="text-[var(--mute)]" />
-              <input
-                id="rep-start-date"
-                aria-label="Start date"
-                type="date"
-                value={startDateStr}
-                onChange={(e) => setStartDateStr(e.target.value)}
-                className="text-xs border border-[var(--border)] rounded-full px-2.5 py-1 bg-[var(--panel)] text-[var(--text)] focus:outline-none focus:ring-1 focus:ring-[var(--g1)]"
-              />
-            </div>
-            <div className="flex items-center gap-1.5 text-xs text-[var(--mute)] pr-1">
-              <label htmlFor="rep-end-date" className="text-xs font-bold text-[var(--mute)] pl-2 sm:pl-0 w-9 sm:w-auto">
-                To
-              </label>
-              <Calendar size={14} className="text-[var(--mute)]" />
-              <input
-                id="rep-end-date"
-                aria-label="End date"
-                type="date"
-                value={endDateStr}
-                onChange={(e) => setEndDateStr(e.target.value)}
-                className="text-xs border border-[var(--border)] rounded-full px-2.5 py-1 bg-[var(--panel)] text-[var(--text)] focus:outline-none focus:ring-1 focus:ring-[var(--g1)]"
-              />
-            </div>
-          </div>
-          <button
-            onClick={download}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold text-white shadow-xs transition-opacity hover:opacity-90 shrink-0 cursor-pointer"
-            style={{ background: 'linear-gradient(135deg, var(--g1), var(--g1b))' }}
-          >
-            <FileText size={15} />
-            <span>Download CSV</span>
-          </button>
-        </div>
+        <ReportDateRangeBar idPrefix="rep" range={range} onChange={setRange} onDownload={download} />
       </div>
 
       {/* ═══════════════════════════════════════════════════════
