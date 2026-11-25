@@ -7,6 +7,7 @@ import type { AcademicReportData } from '@/modules/reports/service'
 import { ReportsView } from '@/modules/reports/components/ReportsView'
 import { StaffReportsView } from '@/modules/reports/components/StaffReportsView'
 import { useReportDateRange } from '@/modules/reports/components/report/dateRange'
+import { isLowAttendance, tallyAttendance } from '@/lib/attendance'
 
 interface AdminReportsClientProps {
   students: Student[]
@@ -49,19 +50,16 @@ export function AdminReportsClient({
 
   const lowAttendanceCount = useMemo(() => {
     if (!academicData?.attendanceRecords?.length) return 0
-    const map = new Map<number, { total: number; present: number }>()
+    // Same rule as the watchlist: Late counts as attended, Exempt sessions are left out.
+    const statusesByStudent = new Map<string, string[]>()
     for (const r of academicData.attendanceRecords) {
-      const reg = r.studentRegisterId
-      if (!map.has(reg)) map.set(reg, { total: 0, present: 0 })
-      const e = map.get(reg)!
-      e.total += 1
-      if (r.status === 'Present') e.present += 1
+      const list = statusesByStudent.get(r.studentId) ?? []
+      list.push(r.status)
+      statusesByStudent.set(r.studentId, list)
     }
     let count = 0
-    for (const val of map.values()) {
-      if (val.total > 0 && (val.present / val.total) * 100 < 75) {
-        count += 1
-      }
+    for (const statuses of statusesByStudent.values()) {
+      if (isLowAttendance(tallyAttendance(statuses))) count += 1
     }
     return count
   }, [academicData])

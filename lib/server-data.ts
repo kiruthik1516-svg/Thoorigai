@@ -33,7 +33,16 @@ export function studentFromRow(row: Record<string, unknown>): Student {
     comments: row.comments ? String(row.comments) : undefined,
     /** Tags (Python, Java, Marketing, etc.) */
     knowledgeTags: Array.isArray(row.knowledge_tags) ? row.knowledge_tags : undefined,
+    createdAt: row.created_at ? String(row.created_at) : undefined,
   }
+}
+
+/**
+ * Staff do not see money (fees, paid amounts or paid status). Blank those fields on the server so
+ * they never reach the page; screens check moneyHidden to leave the columns out.
+ */
+export function withoutMoney(student: Student): Student {
+  return { ...student, total: 0, paid: 0, status: 'Pending', moneyHidden: true }
 }
 
 /** LIKE pattern for user text: escapes %, _ and \ so they match literally (F-36). */
@@ -81,6 +90,8 @@ export function paymentFromRow(row: Record<string, unknown>): Payment {
     studentId: Number(row.student_register_id ?? row.student_id),
     course: joinedStudentCourse(row.students),
     verification_code: row.verification_code ? String(row.verification_code) : undefined,
+    cancelledAt: row.cancelled_at ? String(row.cancelled_at) : undefined,
+    cancelReason: row.cancel_reason ? String(row.cancel_reason) : undefined,
     paymentType: row.payment_type ? String(row.payment_type) : undefined,
     instanceNumber:
       row.instance_number !== undefined && row.instance_number !== null ? Number(row.instance_number) : undefined,
@@ -204,7 +215,7 @@ export async function listPayments(
     `
       id, student_id, student_register_id, method, amount, invoice, payment_date,
       transaction_id, custom_note, payment_type, instance_number, gst_rate, cgst, sgst,
-      gst_inclusive, taxable_value, grand_total,
+      gst_inclusive, taxable_value, grand_total, cancelled_at, cancel_reason,
       students!payments_student_id_fkey ( id, name, course )
     `,
     options.keyset ? undefined : { count: 'exact' },
@@ -255,6 +266,8 @@ export async function listPayments(
         .limit(pageSize + 1)
     : query
         .order(options.sort ?? 'payment_date', { ascending: options.direction === 'asc' })
+        // Unique tiebreaker so same-day payments never repeat or skip between pages.
+        .order('id', { ascending: options.direction === 'asc' })
         .range(pagination.offset, pagination.offset + pagination.limit - 1)
   const { data: rawData, error, count } = await orderedQuery
 
@@ -314,6 +327,8 @@ export type CertificateRow = {
   custom_note?: string
   issued_at: string
   verification_code?: string
+  revoked_at?: string | null
+  revoke_reason?: string | null
 }
 
 export async function listCertificates(

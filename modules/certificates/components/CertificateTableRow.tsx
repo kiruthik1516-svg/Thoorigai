@@ -2,7 +2,9 @@
 
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Eye, ExternalLink, ShieldCheck } from 'lucide-react'
+import { useState } from 'react'
+import { Ban, Eye, ExternalLink, ShieldCheck } from 'lucide-react'
+import { apiErrorMessage } from '@/lib/api/error-message'
 import { CategoryBadge } from '@/components/CategoryBadge'
 import { PillButton } from '@/components/ui/PillButton'
 import { Tag } from '@/components/ui/Tag'
@@ -15,6 +17,8 @@ export interface CertificateRowItem {
   course_name: string
   issue_date: string
   verification_code?: string | null
+  revoked_at?: string | null
+  revoke_reason?: string | null
 }
 
 export function CertificateTableRow({
@@ -25,6 +29,35 @@ export function CertificateTableRow({
   categoryName?: string | null
 }) {
   const router = useRouter()
+  const [revoking, setRevoking] = useState(false)
+  const revoked = Boolean(certificate.revoked_at)
+  const revoke = async () => {
+    const reason = window.prompt(
+      `Revoke certificate ${certificate.certificate_id}? The record stays, but its QR code will stop verifying.
+
+Reason:`,
+    )
+    if (reason === null) return
+    if (reason.trim().length < 3) {
+      window.alert('Give a reason of at least 3 characters.')
+      return
+    }
+    setRevoking(true)
+    try {
+      const res = await fetch('/api/certificates', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: certificate.id, reason }),
+      })
+      if (!res.ok)
+        throw new Error(apiErrorMessage(await res.json().catch(() => null), 'Could not revoke the certificate.'))
+      router.refresh()
+    } catch (err) {
+      window.alert(err instanceof Error ? err.message : 'Could not revoke the certificate.')
+    } finally {
+      setRevoking(false)
+    }
+  }
   const certTargetUrl = `/certificates/${encodeURIComponent(certificate.certificate_id || certificate.id)}`
 
   const handleRowClick = () => {
@@ -66,7 +99,14 @@ export function CertificateTableRow({
       </td>
       <td className="py-3.5 px-5 text-xs text-[var(--mute)]">{certificate.issue_date}</td>
       <td className="py-3.5 px-5">
-        {certificate.verification_code ? (
+        {revoked ? (
+          <span
+            className="inline-flex items-center gap-1 rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-[10px] font-bold text-red-700"
+            title={certificate.revoke_reason ?? 'Revoked'}
+          >
+            Revoked
+          </span>
+        ) : certificate.verification_code ? (
           <Link
             href={`/verify/${certificate.verification_code}`}
             target="_blank"
@@ -88,6 +128,17 @@ export function CertificateTableRow({
             View
           </PillButton>
         </Link>
+        {!revoked && (
+          <button
+            type="button"
+            onClick={revoke}
+            disabled={revoking}
+            className="ml-2 inline-flex items-center gap-1 text-[11px] font-semibold text-red-700 hover:underline disabled:opacity-50"
+            title="Revoke this certificate"
+          >
+            <Ban size={12} /> {revoking ? 'Revoking…' : 'Revoke'}
+          </button>
+        )}
       </td>
     </tr>
   )

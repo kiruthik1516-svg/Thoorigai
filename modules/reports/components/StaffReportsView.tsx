@@ -20,6 +20,14 @@ import { KpiCard } from '@/components/ui/KpiCard'
 import { csvCell } from '@/lib/csv'
 import { ReportDateRangeBar } from './report/ReportDateRangeBar'
 import { useReportDateRange, type ReportDateRange } from './report/dateRange'
+import {
+  LOW_ATTENDANCE_PERCENT,
+  attendancePercent,
+  isAttendedStatus,
+  isExemptStatus,
+  isLowAttendance,
+  tallyAttendance,
+} from '@/lib/attendance'
 
 function parseDate(dateString?: string): Date {
   if (!dateString) return new Date(0)
@@ -72,10 +80,10 @@ export function StaffReportsView({
   // Attendance metrics
   const attendanceStats = useMemo(() => {
     const total = filteredAttendance.length
-    const present = filteredAttendance.filter((r) => r.status === 'Present' || r.status === 'Late').length
+    const tally = tallyAttendance(filteredAttendance.map((r) => r.status))
     const absent = filteredAttendance.filter((r) => r.status === 'Absent').length
-    const rate = total > 0 ? Math.round((present / total) * 100) : 0
-    return { total, present, absent, rate }
+    // Exempt sessions are left out of the rate (same rule as the dashboard and database views).
+    return { total, present: tally.attended, absent, rate: attendancePercent(tally) ?? 0 }
   }, [filteredAttendance])
 
   // Filter assessments by date range
@@ -111,17 +119,15 @@ export function StaffReportsView({
         total: 0,
         present: 0,
       }
-      if (r.status === 'Exempt' || r.status === 'Excused') {
-        // Exempted sessions do not count against student total attendance
-      } else {
+      if (!isExemptStatus(r.status)) {
         current.total += 1
-        if (r.status === 'Present' || r.status === 'Late') current.present += 1
+        if (isAttendedStatus(r.status)) current.present += 1
       }
       map.set(r.studentId, current)
     }
 
     return Array.from(map.values())
-      .filter((s) => s.total > 0 && (s.present / s.total) * 100 < 75)
+      .filter((s) => isLowAttendance({ counted: s.total, attended: s.present }))
       .map((s) => ({
         ...s,
         rate: Math.round((s.present / s.total) * 100),
@@ -419,14 +425,14 @@ export function StaffReportsView({
         </div>
       )}
 
-      {/* Tab 3: Attendance Watchlist (< 75%) */}
+      {/* Tab 3: Attendance Watchlist (< LOW_ATTENDANCE_PERCENT) */}
       {activeTab === 'students' && (
         <div className="bg-[var(--card)] rounded-xl border border-[var(--border)] shadow-xs overflow-hidden">
           <div className="p-4 border-b border-[var(--border)] flex items-center justify-between">
             <div>
               <h3 className="text-xs font-bold text-[var(--text)] uppercase tracking-wider flex items-center gap-1.5">
                 <AlertTriangle size={15} className="text-[#854d0e]" />
-                Students with Attendance Below 75%
+                Students with Attendance Below {LOW_ATTENDANCE_PERCENT}%
               </h3>
               <p className="text-[11px] text-[var(--mute)] mt-0.5">
                 Requires faculty review and outreach to prevent student dropouts.
@@ -451,7 +457,7 @@ export function StaffReportsView({
               {lowAttendanceStudents.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="px-4 py-8 text-center text-[#1b7a4b] font-bold">
-                    All students meet or exceed the 75% attendance threshold.
+                    All students meet or exceed the {LOW_ATTENDANCE_PERCENT}% attendance threshold.
                   </td>
                 </tr>
               ) : (

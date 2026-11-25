@@ -1,6 +1,7 @@
 import { format, parseISO } from 'date-fns'
 import { csvCell } from '@/lib/csv'
 import type { StudentOption } from '../../utils/google-form-parser'
+import { indiaToday } from '@/lib/dates'
 
 export type Assessment = {
   id: string
@@ -56,7 +57,7 @@ export function emptyAssessmentInput(): NewAssessmentInput {
     courseId: '',
     title: '',
     maxScore: '30',
-    assessmentDate: new Date().toISOString().slice(0, 10),
+    assessmentDate: indiaToday(),
     formUrl: '',
     sheetUrl: '',
   }

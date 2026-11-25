@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useDialog } from '@/lib/hooks/useDialog'
 import { createPortal } from 'react-dom'
-import { useSearchParams } from 'next/navigation'
-import { ArrowLeft, CheckCircle2, FileCheck2, FileText, Printer, Receipt, X } from 'lucide-react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { ArrowLeft, CheckCircle2, FileCheck2, FileText, Pencil, Printer, Receipt, Trash2, X } from 'lucide-react'
+import { apiErrorMessage } from '@/lib/api/error-message'
+import { EditStudentModal } from './student-detail/EditStudentModal'
 import { Button } from '@/components/ui/button'
 import type { Course, Payment, Receipt as ReceiptType, Student, Role } from '@/lib/types'
 import { differenceRupees } from '@/lib/money'
@@ -43,7 +45,7 @@ export function StudentDetail({
   /** Active verification code of the student's latest certificate (admin only). */
   certificateVerificationCode?: string | null
 }) {
-  const isStaff = role === 'staff'
+  const isStaff = role === 'staff' || Boolean(student.moneyHidden)
   const balance = differenceRupees(student.total, student.paid)
   const history = payments.filter((p) => p.studentId === student.registerId)
 
@@ -58,6 +60,30 @@ export function StudentDetail({
   )
   const categoryName = matchedCourse?.categoryName
   const courseDuration = matchedCourse?.duration
+
+  const router = useRouter()
+  const [editing, setEditing] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const isAdmin = role === 'admin'
+  const deleteStudent = async () => {
+    if (
+      !window.confirm(
+        `Delete ${student.name} (TAI-${student.registerId})? Their attendance and scores are removed too. Students with invoices or certificates cannot be deleted.`,
+      )
+    )
+      return
+    setDeleting(true)
+    try {
+      const res = await fetch(`/api/students?registerId=${student.registerId}`, { method: 'DELETE' })
+      if (!res.ok) throw new Error(apiErrorMessage(await res.json().catch(() => null), 'Could not delete the student.'))
+      router.push('/students')
+      router.refresh()
+    } catch (err) {
+      window.alert(err instanceof Error ? err.message : 'Could not delete the student.')
+    } finally {
+      setDeleting(false)
+    }
+  }
 
   const [showPrintPreviewModal, setShowPrintPreviewModal] = useState(false)
   const printPreviewRef = useRef<HTMLDivElement>(null)
@@ -103,6 +129,29 @@ export function StudentDetail({
             <Button
               variant="outline"
               size="sm"
+              onClick={() => setEditing(true)}
+              className="text-xs font-semibold shadow-xs"
+              title="Edit this student's details"
+            >
+              <Pencil size={15} />
+              <span className="ml-1.5 hidden sm:inline">Edit</span>
+            </Button>
+            {isAdmin && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={deleteStudent}
+                disabled={deleting}
+                className="text-xs font-semibold text-red-700 shadow-xs"
+                title="Delete a student who has no invoices or certificates"
+              >
+                <Trash2 size={15} />
+                <span className="ml-1.5 hidden sm:inline">{deleting ? 'Deleting…' : 'Delete'}</span>
+              </Button>
+            )}
+            <Button
+              variant="outline"
+              size="sm"
               onClick={handlePrint}
               className="text-xs font-semibold shadow-xs"
               title="Print official academic and financial transcript"
@@ -120,7 +169,7 @@ export function StudentDetail({
               <FileText size={15} />
               <span className="ml-1.5 hidden sm:inline">Preview PDF</span>
             </Button>
-            {balance === 0 && (
+            {!isStaff && !student.moneyHidden && student.total > 0 && balance === 0 && (
               <Button
                 variant="default"
                 size="sm"
@@ -204,6 +253,15 @@ export function StudentDetail({
             canRecordPayment={canRecordPayment}
             onCertificate={onCertificate}
             onInvoice={onInvoice}
+          />
+        )}
+
+        {editing && (
+          <EditStudentModal
+            student={student}
+            courses={courses ?? []}
+            canEditFee={isAdmin && !student.moneyHidden}
+            onClose={() => setEditing(false)}
           />
         )}
 

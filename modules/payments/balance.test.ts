@@ -19,4 +19,14 @@ describe('balanceAfterPayment', () => {
     expect(balanceAfterPayment('missing', ledger, student)).toBe(5000)
     expect(balanceAfterPayment('RCPT-9', ledger, { total: 900000, paid: 1000000 })).toBe(0)
   })
+
+  it('leaves other cancelled payments out, but a cancelled invoice keeps the balance it was issued with', () => {
+    const withCancelled = ledger.map((row) =>
+      row.id === 'RCPT-3' ? { ...row, cancelled_at: '2026-07-03T00:00:00Z' } : row,
+    )
+    // RCPT-3 (₹5,000) no longer counts toward later invoices.
+    expect(balanceAfterPayment('RCPT-9', withCancelled, student)).toBe(10000)
+    // Re-opening the cancelled invoice still shows what was due when it was issued.
+    expect(balanceAfterPayment('RCPT-3', withCancelled, student)).toBe(7000)
+  })
 })

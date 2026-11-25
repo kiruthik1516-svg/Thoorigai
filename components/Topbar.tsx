@@ -391,9 +391,11 @@ export function Topbar({ onMenu, role }: { onMenu: () => void; role: Role }) {
                             TAI-{student.registerId} · {student.course}
                           </p>
                         </div>
-                        <span className={'student-search-chip' + (eligible ? ' is-ready' : '')}>
-                          {eligible ? 'Certificate eligible' : 'Certificate pending'}
-                        </span>
+                        {!student.moneyHidden && (
+                          <span className={'student-search-chip' + (eligible ? ' is-ready' : '')}>
+                            {eligible ? 'Certificate eligible' : 'Certificate pending'}
+                          </span>
+                        )}
                       </header>
 
                       <div className="student-search-actions">
@@ -404,17 +406,19 @@ export function Topbar({ onMenu, role }: { onMenu: () => void; role: Role }) {
                           <UserRound size={14} />
                           View student
                         </button>
-                        <button
-                          type="button"
-                          disabled={!eligible}
-                          title={eligible ? 'Generate certificate' : `Balance remaining: ${money(outstanding)}`}
-                          onClick={() =>
-                            eligible && choose(() => router.push(`/students/${student.registerId}/certificate`))
-                          }
-                        >
-                          <FileCheck2 size={14} />
-                          {eligible ? 'Generate certificate' : `Not eligible · ${money(outstanding)} due`}
-                        </button>
+                        {!student.moneyHidden && (
+                          <button
+                            type="button"
+                            disabled={!eligible}
+                            title={eligible ? 'Generate certificate' : `Balance remaining: ${money(outstanding)}`}
+                            onClick={() =>
+                              eligible && choose(() => router.push(`/students/${student.registerId}/certificate`))
+                            }
+                          >
+                            <FileCheck2 size={14} />
+                            {eligible ? 'Generate certificate' : `Not eligible · ${money(outstanding)} due`}
+                          </button>
+                        )}
                       </div>
 
                       <div className="student-search-invoices">

@@ -1,4 +1,4 @@
-'server-only'
+import 'server-only'
 
 import { createClient } from '@/lib/supabase/server'
 import { listCertificates } from '@/lib/server-data'

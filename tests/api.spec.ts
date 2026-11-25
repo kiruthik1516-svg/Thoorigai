@@ -112,12 +112,19 @@ test('staff enrols a student and admin pays in instalments, issues a certificate
   })
   expect(created.status()).toBe(201)
   const createdBody = await created.json()
-  // F-03: staff enrol without taking a payment; payments are admin-only.
-  expect(createdBody.data.data).toMatchObject({ name, paid: 0, status: 'Pending' })
+  // F-03: staff enrol without taking a payment; payments are admin-only. Staff never see money,
+  // so the fee they sent is ignored (the course fee is used) and fee figures come back blank.
+  expect(createdBody.data.data).toMatchObject({ name, paid: 0, total: 0, moneyHidden: true })
   const registerId = createdBody.data.data.registerId as number
 
   const admin = await playwright.request.newContext({ baseURL, storageState: 'tests/.auth/admin.json' })
   try {
+    const enrolled = await admin.get(`/api/students?page=1&pageSize=5&search=${encodeURIComponent(name)}`)
+    const fee = ((await enrolled.json()).data as Array<{ registerId: number; total: number }>).find(
+      (student) => student.registerId === registerId,
+    )!.total
+    expect(fee).toBe(42000)
+
     const first = await admin.post('/api/payments', {
       headers: { ...headers, 'Idempotency-Key': `e2e-${crypto.randomUUID()}` },
       data: { studentId: registerId, amount: 250, method: 'Cash', date: '2026-09-29' },
@@ -127,28 +134,33 @@ test('staff enrols a student and admin pays in instalments, issues a certificate
 
     const completion = await admin.post('/api/payments', {
       headers: { ...headers, 'Idempotency-Key': `e2e-${crypto.randomUUID()}` },
-      data: { studentId: registerId, amount: 750, method: 'UPI', date: '2026-09-29' },
+      data: { studentId: registerId, amount: fee - 250, method: 'UPI', date: '2026-09-29' },
     })
     expect(completion.status()).toBe(201)
-    expect((await completion.json()).data).toMatchObject({ studentId: registerId, amount: 750 })
-    const lookup = await request.get(`/api/students?page=1&pageSize=5&search=${encodeURIComponent(name)}`)
+    expect((await completion.json()).data).toMatchObject({ studentId: registerId, amount: fee - 250 })
+    const lookup = await admin.get(`/api/students?page=1&pageSize=5&search=${encodeURIComponent(name)}`)
     expect(lookup.status()).toBe(200)
     const matching = (await lookup.json()).data as Array<{ registerId: number; status: string; paid: number }>
-    expect(matching).toContainEqual(expect.objectContaining({ registerId, status: 'Fully Paid', paid: 1000 }))
+    expect(matching).toContainEqual(expect.objectContaining({ registerId, status: 'Fully Paid', paid: fee }))
 
-    const certificateId = `E2E-CERT-${suffix}`
+    // The database numbers certificates; any number the client sends is ignored.
     const issued = await admin.post('/api/certificates', {
       headers,
       data: {
-        certificateId,
+        certificateId: `E2E-CERT-${suffix}`,
         studentRegisterId: registerId,
-        courseName: 'Professional Course',
-        studentName: name,
         issueDate: '2026-09-29',
         skills: ['Web Dev'],
       },
     })
     expect(issued.status()).toBe(201)
+    const certificateId = (await issued.json()).data.certificateId as string
+    expect(certificateId).toMatch(/^TAI-2026-\d{4,}$/)
+    const duplicate = await admin.post('/api/certificates', {
+      headers,
+      data: { studentRegisterId: registerId, issueDate: '2026-09-29', skills: [] },
+    })
+    expect(duplicate.status()).toBe(409)
     const certificates = await admin.get('/api/certificates?page=1&pageSize=100')
     expect(certificates.status()).toBe(200)
     const records = (await certificates.json()).data as Array<{ certificateId: string; verificationCode?: string }>
@@ -191,7 +203,7 @@ test('certificate issuance is rejected server-side while course fees remain outs
       },
     })
     expect(response.status()).toBe(409)
-    expect((await response.json()).error).toContain('Clear the outstanding course fees')
+    expect((await response.json()).error.message).toContain('Clear the outstanding course fees')
   } finally {
     await admin.dispose()
   }
@@ -301,5 +313,5 @@ test('staff creates an assessment, edits and deletes a result, and exports a dat
   expect(exportResponse.headers()['content-type']).toContain('text/csv')
   const csv = await exportResponse.text()
   expect(csv).toContain('Start date')
-  expect(csv).toContain('Payments received in range')
+  expect(csv).toContain('Attendance marks')
 })

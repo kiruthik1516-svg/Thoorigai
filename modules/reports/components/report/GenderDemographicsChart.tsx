@@ -13,6 +13,8 @@ type GenderDemographicsProps = {
   femalePct: number
   malePct: number
   otherPct: number
+  /** Students with no gender recorded; shown separately so they are not counted as "Other". */
+  unspecifiedCount?: number
 }
 
 export function GenderDemographicsChart({
@@ -22,6 +24,7 @@ export function GenderDemographicsChart({
   femalePct,
   malePct,
   otherPct,
+  unspecifiedCount = 0,
 }: GenderDemographicsProps) {
   const [activeGender, setActiveGender] = useState<'Female' | 'Male' | 'Other' | null>(null)
 
@@ -34,7 +37,7 @@ export function GenderDemographicsChart({
 
   const total = femaleStudents.length + maleStudents.length + otherStudents.length
 
-  if (total === 0) {
+  if (total === 0 && unspecifiedCount === 0) {
     return <p className="empty-note">No demographic data in this period.</p>
   }
 
@@ -132,6 +135,13 @@ export function GenderDemographicsChart({
             </span>
           </div>
         </div>
+        {(otherStudents.length > 0 || unspecifiedCount > 0) && (
+          <p className="text-[11px] text-[var(--mute)] px-0.5">
+            {otherStudents.length > 0 && `Other: ${otherStudents.length} (${otherPct}%)`}
+            {otherStudents.length > 0 && unspecifiedCount > 0 && ' · '}
+            {unspecifiedCount > 0 && `Not recorded: ${unspecifiedCount}`}
+          </p>
+        )}
       </div>
 
       {/* ── Interactive Demographic Profile Cards ── */}

@@ -36,7 +36,7 @@ export function StudentProfileHero({
               <span className="font-mono text-xs font-bold px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 border border-slate-200">
                 TAI-{student.registerId}
               </span>
-              <Status status={student.status} />
+              {!student.moneyHidden && <Status status={student.status} />}
               <span className="text-slate-300">|</span>
               <span className="font-semibold text-slate-800">{student.course}</span>
               {categoryName && <CategoryBadge categoryName={categoryName} duration={courseDuration} />}

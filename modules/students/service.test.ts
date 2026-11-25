@@ -29,6 +29,13 @@ vi.mock('@/lib/server-data', () => ({
   listStudents: mocks.listStudents,
   listPayments: mocks.listPayments,
   studentFromRow: mocks.studentFromRow,
+  withoutMoney: (student: Record<string, unknown>) => ({
+    ...student,
+    total: 0,
+    paid: 0,
+    status: 'Pending',
+    moneyHidden: true,
+  }),
 }))
 vi.mock('./repository', () => ({ createStudentWithPaymentAtomic: mocks.createStudentWithPaymentAtomic }))
 vi.mock('@/lib/auth/current-profile', () => ({ getCurrentProfile: mocks.getCurrentProfile }))
@@ -155,11 +162,11 @@ describe('student service', () => {
     await expect(getStudentDetail(8)).resolves.toMatchObject({ certificateVerificationCode: 'VERIFY-1' })
   })
 
-  it('omits payment history for staff', async () => {
+  it('omits payment history and fee figures for staff', async () => {
     mocks.role = 'staff'
     mocks.rows.students = { register_id: 8, name: 'Asha' }
     await expect(getStudentDetail(8)).resolves.toEqual({
-      student: { registerId: 8, name: 'Asha', paid: 0 },
+      student: { registerId: 8, name: 'Asha', paid: 0, total: 0, status: 'Pending', moneyHidden: true },
       payments: [],
       certificateVerificationCode: null,
     })

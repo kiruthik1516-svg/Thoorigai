@@ -8,6 +8,8 @@ import { decodeCursor, encodeCursor, pagePaginationFromSearchParams } from '@/li
 import { withApi } from '@/lib/http/handler'
 import { rolesFor } from '@/lib/auth/permissions'
 import { sameCourse } from '@/lib/courses/match'
+import { isIsoDate } from '@/lib/dates'
+import { lookupProfileNames } from '@/lib/supabase/profile-names'
 
 // F-21: studentId is either a register number (what the UI shows) or the student row UUID.
 const studentFilterSchema = z.union([z.string().regex(/^\d{1,9}$/), z.guid()])
@@ -22,6 +24,18 @@ async function getAttendance(request: Request, supabase: SupabaseClient) {
     const endDate = searchParams.get('endDate')
     const pagination = pagePaginationFromSearchParams(searchParams)
     const keyset = searchParams.has('cursor') || !searchParams.has('page')
+
+    for (const [label, value] of [
+      ['startDate', startDate],
+      ['endDate', endDate],
+    ] as const) {
+      if (value && !isIsoDate(value)) {
+        return NextResponse.json({ error: { message: `${label} must be a valid date (YYYY-MM-DD).` } }, { status: 400 })
+      }
+    }
+    if (courseId && !/^[A-Za-z0-9_-]{1,64}$/.test(courseId)) {
+      return NextResponse.json({ error: { message: 'courseId is not valid.' } }, { status: 400 })
+    }
 
     const studentFilter = studentId ? studentFilterSchema.safeParse(studentId) : null
     if (studentFilter && !studentFilter.success) {
@@ -45,8 +59,7 @@ async function getAttendance(request: Request, supabase: SupabaseClient) {
         marked_by,
         created_at,
         ${studentJoin},
-        courses!attendance_course_id_fkey (id, name),
-        profiles!attendance_marked_by_fkey (id, full_name, role)
+        courses!attendance_course_id_fkey (id, name)
       `,
       keyset ? undefined : { count: 'exact' },
     )
@@ -86,10 +99,14 @@ async function getAttendance(request: Request, supabase: SupabaseClient) {
     const last = data?.at(-1)
     const nextCursor = hasMore && last ? encodeCursor({ date: String(last.session_date), id: String(last.id) }) : null
 
+    const markers = await lookupProfileNames(
+      supabase,
+      (data || []).map((record) => record.marked_by as string | null),
+    )
     const formattedData = (data || []).map((record) => {
       const student = normalizeJoined(record.students)
       const course = normalizeJoined(record.courses)
-      const profile = normalizeJoined(record.profiles)
+      const profile = record.marked_by ? markers.get(String(record.marked_by)) : undefined
       return {
         id: record.id,
         studentId: student?.register_id,
@@ -98,7 +115,7 @@ async function getAttendance(request: Request, supabase: SupabaseClient) {
         courseName: course?.name,
         sessionDate: record.session_date,
         status: record.status === 'Excused' ? 'Exempt' : record.status,
-        markedBy: profile ? { id: profile.id, fullName: profile.full_name, role: profile.role } : null,
+        markedBy: profile ? { id: profile.id, fullName: profile.fullName, role: profile.role } : null,
         createdAt: record.created_at,
       }
     })
@@ -159,7 +176,15 @@ async function postAttendance(
       )
       .select()
       .single()
-    if (attendanceError) throw attendanceError
+    if (attendanceError) {
+      if (String(attendanceError.message).includes('ATTENDANCE_DATE_IN_FUTURE')) {
+        return NextResponse.json(
+          { error: { message: 'Attendance cannot be marked for a future date.' } },
+          { status: 400 },
+        )
+      }
+      throw attendanceError
+    }
 
     const { data: marker } = await supabase.from('profiles').select('full_name').eq('id', user.id).maybeSingle()
 
@@ -191,4 +216,36 @@ export const GET = withApi({ roles: rolesFor('attendance', 'read') }, async ({ r
 export const POST = withApi(
   { roles: rolesFor('attendance', 'create'), body: attendanceSchema },
   async ({ body, supabase, user, role }) => postAttendance(body, supabase!, user!, role),
+)
+
+const deleteAttendanceQuery = z.object({
+  studentId: z.coerce.number().int().positive(),
+  courseId: z.string().regex(/^[A-Za-z0-9_-]{1,64}$/),
+  sessionDate: z.string().refine(isIsoDate, 'sessionDate must be a valid date (YYYY-MM-DD).'),
+})
+
+/** Clears one attendance mark (whoever may mark the course may clear it; RLS enforces that). */
+export const DELETE = withApi(
+  { roles: rolesFor('attendance', 'update'), query: deleteAttendanceQuery },
+  async ({ query, supabase }) => {
+    const { data: student, error: studentError } = await supabase!
+      .from('students')
+      .select('id')
+      .eq('register_id', query.studentId)
+      .maybeSingle()
+    if (studentError) throw studentError
+    if (!student) return NextResponse.json({ error: { message: 'Student not found' } }, { status: 404 })
+    const { data, error } = await supabase!
+      .from('attendance')
+      .delete()
+      .eq('student_id', student.id)
+      .eq('course_id', query.courseId)
+      .eq('session_date', query.sessionDate)
+      .select('id')
+    if (error) throw error
+    if (!data || data.length === 0) {
+      return NextResponse.json({ error: { message: 'No attendance mark to clear.' } }, { status: 404 })
+    }
+    return NextResponse.json({ data: { cleared: true }, message: 'Attendance mark cleared' })
+  },
 )

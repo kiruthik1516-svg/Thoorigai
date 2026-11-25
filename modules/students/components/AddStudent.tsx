@@ -6,6 +6,7 @@ import { calculateGstForRupees, rupeesToPaise } from '@/lib/money'
 import { CategoryBadge } from '@/components/CategoryBadge'
 import { DEFAULT_SKILL_TAGS } from '@/modules/skills/types'
 import type { StudentFormValues } from '@/lib/validation'
+import { indiaToday } from '@/lib/dates'
 
 const DEFAULT_COURSE_OPTIONS = [
   'Professional Course',
@@ -52,7 +53,7 @@ export function AddStudent({
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
   const [course, setCourse] = useState(initialCourse)
-  const [batch, setBatch] = useState(new Date().toISOString().slice(0, 10))
+  const [batch, setBatch] = useState(indiaToday())
   const [total, setTotal] = useState(initialFee ? String(initialFee) : '')
   const [paid, setPaid] = useState('')
   const [error, setError] = useState('')
@@ -106,7 +107,8 @@ export function AddStudent({
       return
     }
     const isStaff = role === 'staff'
-    const totalNum = isStaff ? Number(total) || selectedCourseObj?.fee || 0 : Number(total)
+    // Staff do not see or set fees: the database enrols at the course fee.
+    const totalNum = isStaff ? 0 : Number(total)
     const paidNum = isStaff ? 0 : Number(paid || 0)
 
     if (!isStaff) {

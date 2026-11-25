@@ -1,6 +1,7 @@
 import 'server-only'
 import { createClient } from '@/lib/supabase/server'
 import { normalizeJoined } from '@/lib/supabase/relations'
+import { lookupProfileNames } from '@/lib/supabase/profile-names'
 import { decodeCursor, encodeCursor } from '@/lib/pagination'
 import { z } from 'zod'
 
@@ -15,10 +16,18 @@ export async function listAttendancePage(options: {
 }) {
   const supabase = await createClient()
   const offset = (options.page - 1) * options.pageSize
+  const search = (options.search ?? '')
+    .trim()
+    .slice(0, 100)
+    .replace(/[\\%_,()]/g, ' ')
+    .trim()
+  // With a search the student embed must be !inner; otherwise the filter only blanks the embedded
+  // student and every attendance row is still returned.
+  const studentEmbed = search ? 'students!inner' : 'students'
   let query = supabase
     .from('attendance')
     .select(
-      'id,student_id,course_id,session_date,status,students(register_id,name),courses(name),profiles(full_name)',
+      `id,student_id,course_id,session_date,status,marked_by,${studentEmbed}(register_id,name),courses(name)`,
       options.keyset ? undefined : { count: 'exact' },
     )
   const cursorSchema = z.object({ date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), id: z.guid() })
@@ -26,12 +35,8 @@ export async function listAttendancePage(options: {
     const cursor = decodeCursor(options.cursor, cursorSchema)
     query = query.or(`session_date.lt.${cursor.date},and(session_date.eq.${cursor.date},id.lt.${cursor.id})`)
   }
-  if (options.search) {
-    const q = options.search
-      .trim()
-      .slice(0, 100)
-      .replace(/[\\%_,()]/g, ' ')
-    query = query.or(`name.ilike.%${q}%,phone.ilike.%${q}%`, { referencedTable: 'students' })
+  if (search) {
+    query = query.or(`name.ilike.%${search}%,phone.ilike.%${search}%`, { referencedTable: 'students' })
   }
   const orderedQuery = options.keyset
     ? query
@@ -40,11 +45,16 @@ export async function listAttendancePage(options: {
         .limit(options.pageSize + 1)
     : query
         .order('session_date', { ascending: options.direction === 'asc' })
+        .order('id', { ascending: options.direction === 'asc' })
         .range(offset, offset + options.pageSize - 1)
   const { data: rawData, error, count } = await orderedQuery
   if (error) throw error
   const hasMore = Boolean(options.keyset && rawData && rawData.length > options.pageSize)
   const data = options.keyset ? (rawData ?? []).slice(0, options.pageSize) : rawData
+  const markers = await lookupProfileNames(
+    supabase,
+    (data ?? []).map((row) => (row.marked_by ? String(row.marked_by) : null)),
+  )
   return {
     totalCount: count ?? 0,
     ...(options.keyset
@@ -59,7 +69,7 @@ export async function listAttendancePage(options: {
     data: (data ?? []).map((row) => {
       const student = normalizeJoined(row.students)
       const course = normalizeJoined(row.courses)
-      const profile = normalizeJoined(row.profiles)
+      const marker = row.marked_by ? markers.get(String(row.marked_by)) : undefined
       return {
         id: String(row.id),
         studentId: Number(student?.register_id),
@@ -68,7 +78,7 @@ export async function listAttendancePage(options: {
         courseName: String(course?.name ?? ''),
         sessionDate: String(row.session_date),
         status: String(row.status),
-        markedBy: profile?.full_name ? String(profile.full_name) : '—',
+        markedBy: marker?.fullName ? String(marker.fullName) : '—',
       }
     }),
   }

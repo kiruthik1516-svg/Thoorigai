@@ -8,8 +8,9 @@ import { pagePaginationFromSearchParams } from '@/lib/pagination'
 import { withApi } from '@/lib/http/handler'
 import { rolesFor } from '@/lib/auth/permissions'
 import { sameCourse } from '@/lib/courses/match'
+import { lookupProfileNames } from '@/lib/supabase/profile-names'
 
-const assessmentParams = z.object({ id: z.string().min(1) })
+const assessmentParams = z.object({ id: z.guid() })
 const resultBodySchema = z.union([
   assessmentResultSchema,
   z.object({ results: z.array(assessmentResultSchema).min(1).max(500) }),
@@ -38,8 +39,7 @@ async function getAssessmentResults(request: Request, supabase: SupabaseClient, 
         remarks,
         graded_by,
         graded_at,
-        students!assessment_results_student_id_fkey (id, register_id, name, course),
-        profiles!assessment_results_graded_by_fkey (id, full_name, role)
+        students!assessment_results_student_id_fkey (id, register_id, name, course)
       `,
         { count: 'exact' },
       )
@@ -49,16 +49,20 @@ async function getAssessmentResults(request: Request, supabase: SupabaseClient, 
       .range(pagination.offset, pagination.offset + pagination.limit - 1)
     if (error) throw error
 
+    const graders = await lookupProfileNames(
+      supabase,
+      (data || []).map((record) => (record.graded_by ? String(record.graded_by) : null)),
+    )
     const formattedData = (data || []).map((record) => {
       const student = normalizeJoined(record.students)
-      const profile = normalizeJoined(record.profiles)
+      const profile = record.graded_by ? graders.get(String(record.graded_by)) : undefined
       return {
         id: record.id,
         studentId: student?.register_id,
         studentName: student?.name,
         score: record.score,
         remarks: record.remarks,
-        gradedBy: profile ? { id: profile.id, fullName: profile.full_name, role: profile.role } : null,
+        gradedBy: profile ? { id: profile.id, fullName: profile.fullName, role: profile.role } : null,
         gradedAt: record.graded_at,
       }
     })

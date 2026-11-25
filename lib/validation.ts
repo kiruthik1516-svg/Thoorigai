@@ -1,4 +1,24 @@
 import { z } from 'zod'
+import { indiaToday, isIsoDate } from '@/lib/dates'
+
+/** A real calendar date written as YYYY-MM-DD (2026-02-31 is rejected). */
+export const isoDateSchema = z.string().refine(isIsoDate, { message: 'Enter a valid date (YYYY-MM-DD).' })
+
+/** Same as isoDateSchema, and not later than today in India. */
+export const pastOrTodaySchema = isoDateSchema.refine((value) => value <= indiaToday(), {
+  message: 'The date cannot be in the future.',
+})
+
+/** Empty strings from forms mean "not given". */
+const blankToNull = (value: unknown) => (typeof value === 'string' && value.trim() === '' ? null : value)
+const optionalText = (max: number) =>
+  z.preprocess(blankToNull, z.union([z.string().trim().max(max), z.null()]).optional())
+
+const PHONE = /^\+?[0-9][0-9 -]{6,18}[0-9]$/
+export const phoneSchema = z
+  .string()
+  .trim()
+  .regex(PHONE, { message: 'Enter a valid phone number (digits, spaces or dashes; 8 to 20 characters).' })
 
 export const passwordSchema = z
   .string()
@@ -7,26 +27,52 @@ export const passwordSchema = z
   .regex(/[A-Za-z]/, 'Password must contain at least one letter')
   .regex(/[0-9]/, 'Password must contain at least one number')
 
+const studentProfileFields = {
+  name: z.string().trim().min(1, { message: 'Name is required' }).max(200),
+  phone: phoneSchema,
+  gender: z.preprocess(blankToNull, z.union([z.enum(['Male', 'Female', 'Others']), z.null()]).optional()),
+  dob: z.preprocess(blankToNull, z.union([pastOrTodaySchema, z.null()]).optional()),
+  altPhone: z.preprocess(blankToNull, z.union([phoneSchema, z.null()]).optional()),
+  maritalStatus: optionalText(50),
+  email: z.preprocess(
+    blankToNull,
+    z.union([z.email({ message: 'Enter a valid email address.' }).max(254), z.null()]).optional(),
+  ),
+  country: optionalText(100),
+  state: optionalText(100),
+  city: optionalText(100),
+  area: optionalText(200),
+  studentSource: optionalText(100),
+  comments: optionalText(2000),
+}
+
 export const studentSchema = z.object({
-  name: z.string().min(1, { message: 'Name is required' }),
-  phone: z.string().min(1, { message: 'Phone is required' }),
-  course: z.string().default('Professional Course'),
-  batch: z.string().default(() => new Date().toISOString().slice(0, 10)),
-  total: z.number().int().positive({ message: 'Total must be a positive number' }),
+  ...studentProfileFields,
+  // No default: enrolment must name an existing course (the database rejects unknown names).
+  course: z.string().trim().min(1, { message: 'Course is required' }),
+  batch: z
+    .string()
+    .trim()
+    .min(1)
+    .max(50)
+    .default(() => indiaToday()),
+  // Staff enrol at the course fee, which the database sets; they send 0. Admins must send a fee.
+  total: z.number().int().nonnegative({ message: 'Total must be a positive number' }).default(0),
   paid: z.number().int().nonnegative({ message: 'Paid must be a non-negative number' }).default(0),
-  gender: z.union([z.string(), z.null()]).optional(),
-  dob: z.union([z.string(), z.null()]).optional(),
-  altPhone: z.union([z.string(), z.null()]).optional(),
-  maritalStatus: z.union([z.string(), z.null()]).optional(),
-  email: z.union([z.string(), z.null()]).optional(),
-  country: z.union([z.string(), z.null()]).optional(),
-  state: z.union([z.string(), z.null()]).optional(),
-  city: z.union([z.string(), z.null()]).optional(),
-  area: z.union([z.string(), z.null()]).optional(),
-  studentSource: z.union([z.string(), z.null()]).optional(),
-  comments: z.union([z.string(), z.null()]).optional(),
-  knowledgeTags: z.array(z.string()).default([]),
+  knowledgeTags: z.array(z.string().trim().min(1).max(60)).max(30).default([]),
 })
+
+/** PATCH /api/students: any subset of fields. Only admins may send `total`. */
+export const studentUpdateSchema = z
+  .object({
+    ...studentProfileFields,
+    course: z.string().trim().min(1).max(160),
+    batch: z.string().trim().min(1).max(50),
+    total: z.number().int().positive({ message: 'Total must be a positive number' }),
+    knowledgeTags: z.array(z.string().trim().min(1).max(60)).max(30),
+  })
+  .partial()
+  .refine((value) => Object.keys(value).length > 0, { message: 'Nothing to update.' })
 
 /** What the enrolment form sends to POST /api/students (before schema defaults are applied). */
 export type StudentFormValues = z.input<typeof studentSchema>
@@ -35,10 +81,7 @@ export const paymentSchema = z.object({
   studentId: z.number().int().positive({ message: 'Student ID must be a positive integer' }),
   amount: z.number().positive({ message: 'Amount must be a positive number' }),
   method: z.string().min(1, { message: 'Method is required' }),
-  date: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/, { message: 'Date must be in YYYY-MM-DD format' })
-    .optional(),
+  date: pastOrTodaySchema.optional(),
   transactionId: z.union([z.string().max(100), z.null()]).optional(),
   customNote: z.union([z.string().max(500), z.null()]).optional(),
   paymentType: z.union([z.string().max(100), z.null()]).optional(),
@@ -60,22 +103,23 @@ export const courseSchema = z.object({
   categoryId: z.union([z.guid(), z.string(), z.null()]).optional(),
 })
 
+/**
+ * POST /api/certificates. The certificate number, student name and course come from the database
+ * (issue_certificate); older clients may still send them and they are ignored.
+ */
 export const certificateSchema = z.object({
-  certificateId: z.string().min(1, { message: 'Certificate ID is required' }),
+  certificateId: z.string().optional(),
   studentRegisterId: z.number().int().positive({ message: 'Student register ID must be a positive integer' }),
-  courseName: z.string().min(1, { message: 'Course name is required' }),
-  studentName: z.string().min(1, { message: 'Student name is required' }),
-  issueDate: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/, { message: 'Issue date must be in YYYY-MM-DD format' })
-    .optional(),
+  courseName: z.string().optional(),
+  studentName: z.string().optional(),
+  issueDate: pastOrTodaySchema.optional(),
   studentRowId: z.union([z.string(), z.null()]).optional(),
-  startDate: z.union([z.string(), z.null()]).optional(),
-  endDate: z.union([z.string(), z.null()]).optional(),
-  skills: z.array(z.string()).default([]),
-  directorName: z.union([z.string(), z.null()]).optional(),
-  trainerName: z.union([z.string(), z.null()]).optional(),
-  customNote: z.union([z.string(), z.null()]).optional(),
+  startDate: z.preprocess(blankToNull, z.union([isoDateSchema, z.null()]).optional()),
+  endDate: z.preprocess(blankToNull, z.union([isoDateSchema, z.null()]).optional()),
+  skills: z.array(z.string().trim().min(1).max(60)).max(30).default([]),
+  directorName: optionalText(200),
+  trainerName: optionalText(200),
+  customNote: optionalText(500),
 })
 
 export const gstSchema = z.object({
@@ -87,7 +131,7 @@ export const gstSchema = z.object({
 export const attendanceSchema = z.object({
   studentId: z.number().int().positive({ message: 'Student ID must be a positive integer' }),
   courseId: z.string().min(1, { message: 'Course ID is required' }),
-  sessionDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, { message: 'Date must be in YYYY-MM-DD format' }),
+  sessionDate: pastOrTodaySchema,
   status: z.enum(['Present', 'Absent', 'Exempt', 'Excused']).transform((val) => (val === 'Excused' ? 'Exempt' : val)),
 })
 
@@ -131,8 +175,8 @@ function googleUrlSchema(hosts: readonly string[], label: string) {
 export const assessmentSchema = z.object({
   courseId: z.string().min(1, { message: 'Course ID is required' }),
   title: z.string().min(1, { message: 'Title is required' }),
-  maxScore: z.number().nonnegative({ message: 'Max score must be a non-negative number' }),
-  assessmentDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, { message: 'Date must be in YYYY-MM-DD format' }),
+  maxScore: z.number().positive({ message: 'Max score must be more than zero' }).max(10000),
+  assessmentDate: isoDateSchema,
   formUrl: googleUrlSchema(GOOGLE_FORM_HOSTS, 'Form link'),
   sheetUrl: googleUrlSchema(GOOGLE_SHEET_HOSTS, 'Sheet link'),
 })

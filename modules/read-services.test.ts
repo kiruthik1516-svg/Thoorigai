@@ -75,6 +75,17 @@ function makeClient() {
     }),
     storage: { from: vi.fn(() => storage) },
     storageBucket: storage,
+    rpc: vi.fn(async (name: string) =>
+      name === 'profile_display_names'
+        ? {
+            data: [
+              { id: 'P1', full_name: 'Trainer', role: 'staff' },
+              { id: 'U1', full_name: 'Lead', role: 'admin' },
+            ],
+            error: null,
+          }
+        : { data: null, error: null },
+    ),
   }
 }
 
@@ -206,7 +217,7 @@ describe('read-only domain services', () => {
           status: 'Present',
           students: [{ register_id: 9, name: 'Asha' }],
           courses: { id: 'C1', name: 'Web' },
-          profiles: { full_name: 'Trainer' },
+          marked_by: 'P1',
         },
       ],
     })
@@ -225,7 +236,7 @@ describe('read-only domain services', () => {
           assessment_date: '2026-09-29',
           created_at: '2026-09-29',
           courses: { id: 'C1', name: 'Web' },
-          profiles: { id: 'P1', full_name: 'Trainer', role: 'staff' },
+          created_by: 'P1',
           form_url: 'https://docs.google.com/forms/d/e/test/viewform',
           sheet_url: 'https://docs.google.com/spreadsheets/d/test',
         },
@@ -249,56 +260,11 @@ describe('read-only domain services', () => {
       ],
     })
 
-    // Fallback query test
-    setResults(
-      'assessments',
-      { data: null, error: new Error('PGRST200 join error') },
-      {
-        count: 1,
-        data: [
-          {
-            id: 2,
-            course_id: 'C2',
-            title: 'Fallback Quiz',
-            max_score: 25,
-            assessment_date: '2026-09-30',
-            created_by: 'U1',
-            created_at: '2026-09-30',
-          },
-        ],
-      },
+    // A failed query is reported, never shown as "no assessments".
+    setResults('assessments', { data: null, error: new Error('primary error') })
+    await expect(listAssessmentPage({ page: 1, pageSize: 5, search: '', courseId: '' })).rejects.toThrow(
+      'primary error',
     )
-    setResults('courses', { data: [{ id: 'C2', name: 'Cloud' }], error: null })
-    setResults('profiles', { data: [{ id: 'U1', full_name: 'Lead', role: 'admin' }], error: null })
-
-    await expect(listAssessmentPage({ page: 1, pageSize: 5, search: 'Fallback', courseId: 'C2' })).resolves.toEqual({
-      totalCount: 1,
-      data: [
-        {
-          id: '2',
-          courseId: 'C2',
-          courseName: 'Cloud',
-          title: 'Fallback Quiz',
-          maxScore: 25,
-          assessmentDate: '2026-09-30',
-          formUrl: null,
-          sheetUrl: null,
-          createdAt: '2026-09-30',
-          createdBy: { id: 'U1', fullName: 'Lead', role: 'admin' },
-        },
-      ],
-    })
-
-    // Both queries fail test
-    setResults(
-      'assessments',
-      { data: null, error: new Error('primary error') },
-      { data: null, error: new Error('fallback error') },
-    )
-    await expect(listAssessmentPage({ page: 1, pageSize: 5, search: '', courseId: '' })).resolves.toEqual({
-      totalCount: 0,
-      data: [],
-    })
     setResults('audit_log', {
       count: 1,
       data: [{ id: 1, table_name: 'students', record_id: '3', action: 'INSERT', changed_at: 'now', profiles: null }],
@@ -401,7 +367,7 @@ describe('read-only domain services', () => {
     )
   })
 
-  it('requires an existing course and signs each material download URL', async () => {
+  it('requires an existing course and links each material to its download route', async () => {
     setResults('courses', { data: { name: 'Web' } })
     setResults('course_materials', {
       data: [
@@ -419,13 +385,13 @@ describe('read-only domain services', () => {
     })
     await expect(listCourseMaterials('C1', 1, 10)).resolves.toMatchObject({
       courseName: 'Web',
-      data: [{ signedUrl: 'https://signed.test/file', title: 'Slides' }],
+      data: [{ signedUrl: '/api/course-materials/download?id=M1', title: 'Slides' }],
     })
+    expect(mocks.client.storageBucket.createSignedUrl).not.toHaveBeenCalled()
     setResults('courses', { data: null, error: null })
     await expect(listCourseMaterials('missing', 1, 10)).rejects.toBeInstanceOf(NotFoundError)
     setResults('courses', { data: { name: 'Web' } })
-    setResults('course_materials', { data: [{ storage_path: 'x' }] })
-    mocks.client.storageBucket.createSignedUrl.mockResolvedValueOnce({ data: null, error: new Error('sign failed') })
-    await expect(listCourseMaterials('C1', 1, 10)).rejects.toThrow('sign failed')
+    setResults('course_materials', { data: null, error: new Error('list failed') })
+    await expect(listCourseMaterials('C1', 1, 10)).rejects.toThrow('list failed')
   })
 })

@@ -290,7 +290,6 @@ export function StudentsView({
                     <th>Batch start</th>
                     <th>Contact & Location</th>
                     <th>Specialization</th>
-                    <th>Status</th>
                     <th className="align-right">Action</th>
                   </tr>
                 ) : (
@@ -376,9 +375,6 @@ export function StudentsView({
                               </span>
                             )}
                           </div>
-                        </td>
-                        <td>
-                          <Status status={s.status} />
                         </td>
                         <td className="align-right">
                           <Link
@@ -490,7 +486,7 @@ export function StudentsView({
                               <span className="block text-xs font-mono text-[var(--mute)]">TAI-{s.registerId}</span>
                             </div>
                           </div>
-                          <Status status={s.status} />
+                          {!isStaff && <Status status={s.status} />}
                         </div>
 
                         <div className="mb-3 pt-2 border-t border-slate-100 flex items-center justify-between text-xs">

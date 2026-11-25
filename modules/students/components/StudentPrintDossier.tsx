@@ -62,6 +62,8 @@ export function StudentPrintDossier({
   certificateVerificationCode = null,
 }: StudentPrintDossierProps) {
   const balance = differenceRupees(student.total, student.paid)
+  // Staff never receive fee data (moneyHidden); the financial parts of the dossier are left out.
+  const hideMoney = Boolean(student.moneyHidden)
   const isSettled = balance === 0
   const history = payments.filter((p) => p.studentId === student.registerId)
 
@@ -155,7 +157,7 @@ export function StudentPrintDossier({
                   Ref: DOS-{currentYear}-{student.registerId}
                 </div>
                 <div>
-                  {isSettled ? (
+                  {hideMoney ? null : isSettled ? (
                     <span className="text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-300 font-bold">
                       Account Settled in Full
                     </span>
@@ -255,7 +257,7 @@ export function StudentPrintDossier({
                     <strong className="text-slate-900 block">{student.studentSource || 'Direct Walk-in'}</strong>
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-2 gap-2" hidden={hideMoney}>
                   <div>
                     <span className="text-slate-500 block">Total Course Fee</span>
                     <strong className="text-slate-900 font-mono block">{money(student.total)}</strong>
@@ -339,167 +341,173 @@ export function StudentPrintDossier({
           <span>
             Student Master Transcript · {brand.displayName} · Ref: DOS-{currentYear}-{student.registerId}
           </span>
-          <span className="font-mono font-bold">Page 1 of 4</span>
+          <span className="font-mono font-bold">Page 1 of {hideMoney ? 3 : 4}</span>
         </footer>
       </article>
 
       {/* ═══════════════════════════════════════════════════════════════════════════
-          PAGE 2: COMPREHENSIVE FINANCIAL STATEMENT & INVOICES LEDGER
+          PAGE 2: COMPREHENSIVE FINANCIAL STATEMENT & INVOICES LEDGER (not for staff: no money)
          ═══════════════════════════════════════════════════════════════════════════ */}
-      <article className="dossier-page">
-        <div>
-          {/* Header */}
-          <header className="border-b border-slate-300 pb-2 mb-4 flex items-center justify-between">
-            <div>
-              <h2 className="text-sm font-bold text-slate-950 uppercase tracking-wide flex items-center gap-1.5">
-                <CircleDollarSign size={16} className="text-emerald-700" />
-                Section 2: Fee Structure &amp; Recorded Invoices Ledger
-              </h2>
-              <p className="text-[9px] text-slate-500">
-                Official Financial Accounting Statement for TAI-{student.registerId}
-              </p>
-            </div>
-            <span className="text-[10px] font-mono text-slate-600 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
-              GST Rate: {gstRate}% Included
-            </span>
-          </header>
+      {!hideMoney && (
+        <article className="dossier-page">
+          <div>
+            {/* Header */}
+            <header className="border-b border-slate-300 pb-2 mb-4 flex items-center justify-between">
+              <div>
+                <h2 className="text-sm font-bold text-slate-950 uppercase tracking-wide flex items-center gap-1.5">
+                  <CircleDollarSign size={16} className="text-emerald-700" />
+                  Section 2: Fee Structure &amp; Recorded Invoices Ledger
+                </h2>
+                <p className="text-[9px] text-slate-500">
+                  Official Financial Accounting Statement for TAI-{student.registerId}
+                </p>
+              </div>
+              <span className="text-[10px] font-mono text-slate-600 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                GST Rate: {gstRate}% Included
+              </span>
+            </header>
 
-          {/* 4 Financial KPI Blocks */}
-          <div className="grid grid-cols-4 gap-3 mb-5 text-center">
-            <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
-              <span className="text-[9px] uppercase font-bold text-slate-500 block">Total Course Fee</span>
-              <strong className="text-base font-bold text-slate-950 font-mono block mt-0.5">
-                {money(student.total)}
-              </strong>
-            </div>
+            {/* 4 Financial KPI Blocks */}
+            <div className="grid grid-cols-4 gap-3 mb-5 text-center">
+              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
+                <span className="text-[9px] uppercase font-bold text-slate-500 block">Total Course Fee</span>
+                <strong className="text-base font-bold text-slate-950 font-mono block mt-0.5">
+                  {money(student.total)}
+                </strong>
+              </div>
 
-            <div className="p-3 rounded-lg bg-emerald-50/70 border border-emerald-300">
-              <span className="text-[9px] uppercase font-bold text-emerald-800 block">Amount Settled</span>
-              <strong className="text-base font-bold text-emerald-700 font-mono block mt-0.5">
-                {money(student.paid)}
-              </strong>
-            </div>
+              <div className="p-3 rounded-lg bg-emerald-50/70 border border-emerald-300">
+                <span className="text-[9px] uppercase font-bold text-emerald-800 block">Amount Settled</span>
+                <strong className="text-base font-bold text-emerald-700 font-mono block mt-0.5">
+                  {money(student.paid)}
+                </strong>
+              </div>
 
-            <div
-              className={`p-3 rounded-lg border ${
-                isSettled ? 'bg-slate-50 border-slate-200' : 'bg-rose-50 border-rose-300'
-              }`}
-            >
-              <span className="text-[9px] uppercase font-bold text-slate-500 block">Balance Remaining</span>
-              <strong
-                className={`text-base font-bold font-mono block mt-0.5 ${
-                  isSettled ? 'text-slate-900' : 'text-rose-700'
+              <div
+                className={`p-3 rounded-lg border ${
+                  isSettled ? 'bg-slate-50 border-slate-200' : 'bg-rose-50 border-rose-300'
                 }`}
               >
-                {money(balance)}
-              </strong>
+                <span className="text-[9px] uppercase font-bold text-slate-500 block">Balance Remaining</span>
+                <strong
+                  className={`text-base font-bold font-mono block mt-0.5 ${
+                    isSettled ? 'text-slate-900' : 'text-rose-700'
+                  }`}
+                >
+                  {money(balance)}
+                </strong>
+              </div>
+
+              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
+                <span className="text-[9px] uppercase font-bold text-slate-500 block">Clearance Status</span>
+                <strong className="text-xs font-bold text-slate-900 block mt-1">
+                  {isSettled ? (
+                    <span className="text-emerald-700 font-bold">100% Cleared</span>
+                  ) : (
+                    <span>{percentageOfRupees(student.paid, student.total)}% Paid</span>
+                  )}
+                </strong>
+              </div>
             </div>
 
-            <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
-              <span className="text-[9px] uppercase font-bold text-slate-500 block">Clearance Status</span>
-              <strong className="text-xs font-bold text-slate-900 block mt-1">
-                {isSettled ? (
-                  <span className="text-emerald-700 font-bold">100% Cleared</span>
-                ) : (
-                  <span>{percentageOfRupees(student.paid, student.total)}% Paid</span>
-                )}
-              </strong>
-            </div>
-          </div>
-
-          {/* Invoices Table */}
-          <div className="border border-slate-200 rounded-xl overflow-hidden mb-6">
-            <table className="w-full text-left border-collapse text-[10px]">
-              <thead>
-                <tr className="border-b border-slate-200 bg-slate-100 text-slate-700 uppercase font-bold">
-                  <th className="py-2 px-3 font-mono">Invoice / Receipt #</th>
-                  <th className="py-2 px-3">Date</th>
-                  <th className="py-2 px-3">Milestone / Description</th>
-                  <th className="py-2 px-3">Payment Method</th>
-                  <th className="py-2 px-3 font-mono">Transaction Ref #</th>
-                  <th className="py-2 px-3 text-right">Amount (₹)</th>
-                  <th className="py-2 px-3 text-center">Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {history.length > 0 ? (
-                  history.map((p, idx) => (
-                    <tr key={p.id || idx}>
-                      <td className="py-2 px-3 font-mono font-bold text-slate-900">
-                        {p.invoice || `INV-TAI-${p.studentId}-${idx + 1}`}
-                      </td>
-                      <td className="py-2 px-3 text-slate-700 font-mono">{formatDate(p.date)}</td>
-                      <td className="py-2 px-3 font-medium text-slate-800">
-                        {p.paymentType || `Installment ${idx + 1}`}
-                      </td>
-                      <td className="py-2 px-3 text-slate-600">{p.method || 'Online'}</td>
-                      <td className="py-2 px-3 text-slate-500 font-mono text-[9px]">{p.transactionId || 'PROV-REF'}</td>
-                      <td className="py-2 px-3 text-right font-mono font-bold text-slate-900">{money(p.amount)}</td>
-                      <td className="py-2 px-3 text-center">
-                        <span className="text-[9px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-300">
-                          Verified
-                        </span>
+            {/* Invoices Table */}
+            <div className="border border-slate-200 rounded-xl overflow-hidden mb-6">
+              <table className="w-full text-left border-collapse text-[10px]">
+                <thead>
+                  <tr className="border-b border-slate-200 bg-slate-100 text-slate-700 uppercase font-bold">
+                    <th className="py-2 px-3 font-mono">Invoice / Receipt #</th>
+                    <th className="py-2 px-3">Date</th>
+                    <th className="py-2 px-3">Milestone / Description</th>
+                    <th className="py-2 px-3">Payment Method</th>
+                    <th className="py-2 px-3 font-mono">Transaction Ref #</th>
+                    <th className="py-2 px-3 text-right">Amount (₹)</th>
+                    <th className="py-2 px-3 text-center">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {history.length > 0 ? (
+                    history.map((p, idx) => (
+                      <tr key={p.id || idx}>
+                        <td className="py-2 px-3 font-mono font-bold text-slate-900">
+                          {p.invoice || `INV-TAI-${p.studentId}-${idx + 1}`}
+                        </td>
+                        <td className="py-2 px-3 text-slate-700 font-mono">{formatDate(p.date)}</td>
+                        <td className="py-2 px-3 font-medium text-slate-800">
+                          {p.paymentType || `Installment ${idx + 1}`}
+                        </td>
+                        <td className="py-2 px-3 text-slate-600">{p.method || 'Online'}</td>
+                        <td className="py-2 px-3 text-slate-500 font-mono text-[9px]">
+                          {p.transactionId || 'PROV-REF'}
+                        </td>
+                        <td className="py-2 px-3 text-right font-mono font-bold text-slate-900">{money(p.amount)}</td>
+                        <td className="py-2 px-3 text-center">
+                          <span className="text-[9px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-300">
+                            Verified
+                          </span>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={7} className="py-4 text-center text-slate-400 italic">
+                        No payment transactions recorded yet.
                       </td>
                     </tr>
-                  ))
-                ) : (
+                  )}
+                </tbody>
+                <tfoot className="border-t-2 border-slate-300 font-bold bg-slate-50 text-[10px]">
                   <tr>
-                    <td colSpan={7} className="py-4 text-center text-slate-400 italic">
-                      No payment transactions recorded yet.
+                    <td colSpan={5} className="py-2 px-3 text-slate-700 uppercase">
+                      Total Fees Settled
+                    </td>
+                    <td className="py-2 px-3 text-right font-mono text-emerald-700 text-xs">{money(student.paid)}</td>
+                    <td className="py-2 px-3 text-center font-mono text-[9px] text-slate-500">
+                      {history.length} Receipts
                     </td>
                   </tr>
-                )}
-              </tbody>
-              <tfoot className="border-t-2 border-slate-300 font-bold bg-slate-50 text-[10px]">
-                <tr>
-                  <td colSpan={5} className="py-2 px-3 text-slate-700 uppercase">
-                    Total Fees Settled
-                  </td>
-                  <td className="py-2 px-3 text-right font-mono text-emerald-700 text-xs">{money(student.paid)}</td>
-                  <td className="py-2 px-3 text-center font-mono text-[9px] text-slate-500">
-                    {history.length} Receipts
-                  </td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
+                </tfoot>
+              </table>
+            </div>
 
-          {/* Accounts Clearance & Endorsement */}
-          <div className="border border-slate-200 rounded-xl p-4 bg-slate-50/50">
-            <h3 className="text-[10px] font-bold text-slate-900 uppercase tracking-wider mb-2">
-              Fee Settlement Clearance Endorsement
-            </h3>
-            <p className="text-[9px] text-slate-600 leading-relaxed mb-6">
-              This statement serves as an official accounting receipt for fees received towards tuition, laboratory, and
-              examination facilities. All amounts logged above are reconciled against banking statements and
-              institutional GST tax records.
-            </p>
+            {/* Accounts Clearance & Endorsement */}
+            <div className="border border-slate-200 rounded-xl p-4 bg-slate-50/50">
+              <h3 className="text-[10px] font-bold text-slate-900 uppercase tracking-wider mb-2">
+                Fee Settlement Clearance Endorsement
+              </h3>
+              <p className="text-[9px] text-slate-600 leading-relaxed mb-6">
+                This statement serves as an official accounting receipt for fees received towards tuition, laboratory,
+                and examination facilities. All amounts logged above are reconciled against banking statements and
+                institutional GST tax records.
+              </p>
 
-            <div className="grid grid-cols-2 gap-8 pt-4 border-t border-slate-200">
-              <div className="text-center">
-                <div className="h-8 border-b border-slate-800 max-w-[160px] mx-auto" />
-                <strong className="block text-[10px] font-bold text-slate-900 mt-1">Authorized Finance Officer</strong>
-                <span className="text-[8px] text-slate-500 uppercase">Accounts Department · {brand.displayName}</span>
-              </div>
-              <div className="text-center">
-                <div className="h-8 border-b border-slate-800 max-w-[160px] mx-auto" />
-                <strong className="block text-[10px] font-bold text-slate-900 mt-1">
-                  Student Candidate Acknowledgment
-                </strong>
-                <span className="text-[8px] text-slate-500 uppercase">{student.name}</span>
+              <div className="grid grid-cols-2 gap-8 pt-4 border-t border-slate-200">
+                <div className="text-center">
+                  <div className="h-8 border-b border-slate-800 max-w-[160px] mx-auto" />
+                  <strong className="block text-[10px] font-bold text-slate-900 mt-1">
+                    Authorized Finance Officer
+                  </strong>
+                  <span className="text-[8px] text-slate-500 uppercase">Accounts Department · {brand.displayName}</span>
+                </div>
+                <div className="text-center">
+                  <div className="h-8 border-b border-slate-800 max-w-[160px] mx-auto" />
+                  <strong className="block text-[10px] font-bold text-slate-900 mt-1">
+                    Student Candidate Acknowledgment
+                  </strong>
+                  <span className="text-[8px] text-slate-500 uppercase">{student.name}</span>
+                </div>
               </div>
             </div>
           </div>
-        </div>
 
-        {/* Page 2 Footer */}
-        <footer className="border-t border-slate-300 pt-2 text-[9px] text-slate-500 flex items-center justify-between">
-          <span>
-            Financial Records &amp; Invoices · {brand.displayName} · Ref: DOS-{currentYear}-{student.registerId}
-          </span>
-          <span className="font-mono font-bold">Page 2 of 4</span>
-        </footer>
-      </article>
+          {/* Page 2 Footer */}
+          <footer className="border-t border-slate-300 pt-2 text-[9px] text-slate-500 flex items-center justify-between">
+            <span>
+              Financial Records &amp; Invoices · {brand.displayName} · Ref: DOS-{currentYear}-{student.registerId}
+            </span>
+            <span className="font-mono font-bold">Page 2 of 4</span>
+          </footer>
+        </article>
+      )}
 
       {/* ═══════════════════════════════════════════════════════════════════════════
           PAGE 3: CLASSROOM ATTENDANCE & ACADEMIC ASSESSMENTS
@@ -672,7 +680,9 @@ export function StudentPrintDossier({
           <span>
             Academic Evaluations &amp; Attendance · {brand.displayName} · Ref: DOS-{currentYear}-{student.registerId}
           </span>
-          <span className="font-mono font-bold">Page 3 of 4</span>
+          <span className="font-mono font-bold">
+            Page {hideMoney ? 2 : 3} of {hideMoney ? 3 : 4}
+          </span>
         </footer>
       </article>
 
@@ -761,7 +771,7 @@ export function StudentPrintDossier({
                 </div>
               </div>
 
-              {!isSettled && (
+              {!isSettled && !hideMoney && (
                 <div className="mt-3 p-2 bg-amber-50 border border-amber-300 rounded text-center text-[9px] text-amber-900 font-medium">
                   * Note: Official printed parchment certificate is released upon balance clearance (Remaining:{' '}
                   {money(balance)}).
@@ -776,7 +786,9 @@ export function StudentPrintDossier({
           <span>
             Official Parchment Transcript · {brand.displayName} · Ref: DOS-{currentYear}-{student.registerId}
           </span>
-          <span className="font-mono font-bold">Page 4 of 4</span>
+          <span className="font-mono font-bold">
+            Page {hideMoney ? 3 : 4} of {hideMoney ? 3 : 4}
+          </span>
         </footer>
       </article>
     </div>

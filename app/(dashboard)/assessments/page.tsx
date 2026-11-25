@@ -13,23 +13,15 @@ export default async function AssessmentsPage({ searchParams }: PageProps<'/asse
 
   const supabase = await createClient()
 
+  // Errors reach the route error boundary instead of showing an empty list that looks like
+  // "no assessments yet".
   const [result, categories, rawCourses] = await Promise.all([
-    listAssessmentPage({ ...query, courseId }).catch((err) => {
-      console.warn('[AssessmentsPage] listAssessmentPage error:', err)
-      return { totalCount: 0, data: [] }
-    }),
-    listCourseCategories().catch((err) => {
-      console.warn('[AssessmentsPage] listCourseCategories error:', err)
-      return []
-    }),
+    listAssessmentPage({ ...query, courseId }),
+    listCourseCategories(),
     (async () => {
-      try {
-        const { data } = await supabase.from('courses').select('id, name, category_id').order('name').limit(200)
-        return data ?? []
-      } catch (err) {
-        console.warn('[AssessmentsPage] courses query error:', err)
-        return []
-      }
+      const { data, error } = await supabase.from('courses').select('id, name, category_id').order('name').limit(200)
+      if (error) throw error
+      return data ?? []
     })(),
   ])
 

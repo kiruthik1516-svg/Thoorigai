@@ -3,6 +3,7 @@
 import { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { apiErrorMessage } from '@/lib/api/error-message'
 import {
   Check,
   X,
@@ -94,19 +95,32 @@ export function AttendanceMarking({
     return list.filter((r) => r.name.toLowerCase().includes(term) || String(r.registerId).includes(term))
   }, [rows, statusFilter, searchTerm])
 
-  async function setStatus(registerId: number, status: Status) {
+  /** Marks a status; choosing the status a student already has clears the mark. */
+  async function setStatus(registerId: number, status: Status, { toggle = false } = {}) {
     const previous = rows.find((row) => row.registerId === registerId)?.status ?? null
-    setRows((current) => current.map((row) => (row.registerId === registerId ? { ...row, status } : row)))
+    const clearing = toggle && previous === status
+    const next = clearing ? null : status
+    setRows((current) => current.map((row) => (row.registerId === registerId ? { ...row, status: next } : row)))
     setSaving((current) => [...current, registerId])
-    setMessage('Saving attendance…')
+    setMessage(clearing ? 'Clearing attendance…' : 'Saving attendance…')
     try {
-      const response = await fetch('/api/attendance', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ studentId: registerId, courseId, sessionDate, status }),
-      })
-      if (!response.ok) throw new Error('Could not save attendance. Please retry.')
-      setMessage(`Attendance saved for ${rows.find((row) => row.registerId === registerId)?.name ?? 'student'}.`)
+      const response = clearing
+        ? await fetch(
+            `/api/attendance?studentId=${registerId}&courseId=${encodeURIComponent(courseId)}&sessionDate=${sessionDate}`,
+            { method: 'DELETE' },
+          )
+        : await fetch('/api/attendance', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ studentId: registerId, courseId, sessionDate, status }),
+          })
+      if (!response.ok) {
+        throw new Error(
+          apiErrorMessage(await response.json().catch(() => null), 'Could not save attendance. Please retry.'),
+        )
+      }
+      const name = rows.find((row) => row.registerId === registerId)?.name ?? 'student'
+      setMessage(clearing ? `Attendance cleared for ${name}.` : `Attendance saved for ${name}.`)
       router.refresh()
     } catch (error) {
       setRows((current) => current.map((row) => (row.registerId === registerId ? { ...row, status: previous } : row)))
@@ -497,7 +511,8 @@ export function AttendanceMarking({
                         aria-label={`${status} for ${row.name}`}
                         aria-pressed={isSelected}
                         disabled={saving.includes(row.registerId)}
-                        onClick={() => void setStatus(row.registerId, status)}
+                        onClick={() => void setStatus(row.registerId, status, { toggle: true })}
+                        title={isSelected ? 'Click again to clear this mark' : undefined}
                         className={`min-h-12 px-2 rounded-xl border text-sm transition-all cursor-pointer inline-flex items-center justify-center gap-1 ${getStatusButtonClass(
                           status,
                           isSelected,
@@ -622,7 +637,8 @@ export function AttendanceMarking({
                                 void setStatus(row.registerId, 'Exempt')
                               }
                             }}
-                            onClick={() => void setStatus(row.registerId, status)}
+                            onClick={() => void setStatus(row.registerId, status, { toggle: true })}
+                            title={isSelected ? 'Click again to clear this mark' : undefined}
                             className={`w-full min-h-10 sm:min-h-11 px-3 py-2 rounded-full border text-xs sm:text-sm transition-all cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:ring-2 focus-visible:ring-[var(--g1)] inline-flex items-center justify-center gap-1.5 ${getStatusButtonClass(
                               status,
                               isSelected,

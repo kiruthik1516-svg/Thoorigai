@@ -69,7 +69,23 @@ describe('dashboard service', () => {
       for (const m of ['select', 'order', 'limit', 'eq']) {
         query[m] = vi.fn(() => query)
       }
+      // Paged reads: anything after the first page is empty.
+      query.from = 0
+      query.range = vi.fn((from: number) => {
+        query.from = from
+        return query
+      })
       query.then = (resolve: (val: any) => any) => {
+        if (query.from > 0) return resolve({ data: [], error: null })
+        if (table === 'attendance_summary') {
+          return resolve({
+            data: [
+              { student_id: '1', sessions: 4, present_sessions: 4 },
+              { student_id: '2', sessions: 4, present_sessions: 1 },
+            ],
+            error: null,
+          })
+        }
         if (table === 'students') {
           return resolve({
             data: [
@@ -120,5 +136,8 @@ describe('dashboard service', () => {
     expect(staffData.materialsCount).toBe(5)
     expect(staffData.categoryMix).toBeDefined()
     expect(staffData.categoryMix.length).toBeGreaterThanOrEqual(3)
+    // Bob attended 1 of 4 counted sessions (25%), below the 75% watchlist line.
+    expect(staffData.lowAttendanceStudents.map((s) => s.name)).toEqual(['Bob'])
+    expect(staffData.lowAttendanceStudents[0].rate).toBe(25)
   })
 })

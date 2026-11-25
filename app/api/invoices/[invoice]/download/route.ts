@@ -91,7 +91,7 @@ async function getInvoicePdf(supabase: SupabaseClient, context: { params: Promis
   const student = studentRow ? studentFromRow(studentRow) : undefined
   const { data: ledger, error: ledgerError } = await supabase
     .from('payments')
-    .select('id, amount, payment_date, instance_number, created_at')
+    .select('id, amount, payment_date, instance_number, created_at, cancelled_at')
     .eq('student_id', paymentRow.student_id)
   if (ledgerError) return unexpectedApiError(ledgerError, 'Failed to load invoice balance')
   const balanceAfter = studentRow ? balanceAfterPayment(String(paymentRow.id), ledger ?? [], studentRow) : undefined

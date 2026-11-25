@@ -1,6 +1,7 @@
 import type { ChartConfig } from '@/components/ui/chart'
 import type { Course, CourseCategory, Payment, Student } from '@/lib/types'
 import { paiseToRupees, rupeesToPaise } from '@/lib/money'
+import { isoDateInIndia } from '@/lib/dates'
 
 const MONTHS: Record<string, number> = {
   jan: 0,
@@ -64,7 +65,7 @@ export type ReportMetricsInput = {
 }
 
 export function computeReportMetrics({
-  students,
+  students: allStudents,
   payments,
   categories,
   courses,
@@ -78,15 +79,19 @@ export function computeReportMetrics({
   // Revenue and method totals use the selected period; balances are as of the end date.
   const periodPayments = payments.filter((p) => {
     const date = paymentDate(p)
-    return date >= start && date <= end
+    return !p.cancelledAt && date >= start && date <= end
   })
+  // The cohort is everyone enrolled on or before the end date; balances are as of that date.
+  const students = allStudents.filter((s) => !s.createdAt || isoDateInIndia(new Date(s.createdAt)) <= endDate)
   const paidPerStudent = payments
-    .filter((p) => paymentDate(p) <= end)
+    .filter((p) => !p.cancelledAt && paymentDate(p) <= end)
     .reduce<Record<number, number>>((map, p) => {
       map[p.studentId] = (map[p.studentId] || 0) + p.amount
       return map
     }, {})
-  const paidAsOfEnd = (s: Student) => paidPerStudent[s.registerId] ?? s.paid ?? 0
+  // A student with no payment by the end date had paid nothing then (not today's amount).
+  const paidAsOfEnd = (s: Student) => paidPerStudent[s.registerId] ?? 0
+  const fullyPaidAsOfEnd = (s: Student) => s.total > 0 && paidAsOfEnd(s) >= s.total
 
   const courseCategory = new Map<string, { id: string; name: string }>()
   courses.forEach((c) => {
@@ -157,7 +162,8 @@ export function computeReportMetrics({
 
   const femaleStudents = students.filter((s) => s.gender === 'Female')
   const maleStudents = students.filter((s) => s.gender === 'Male')
-  const otherStudents = students.filter((s) => s.gender !== 'Female' && s.gender !== 'Male')
+  const otherStudents = students.filter((s) => s.gender === 'Others')
+  const unspecifiedStudents = students.filter((s) => !s.gender)
 
   return {
     periodPayments,
@@ -169,8 +175,16 @@ export function computeReportMetrics({
     outstanding,
     collectionRate: percent(totalPaid, totalFees),
     averageFee: students.length > 0 ? Math.round(totalFees / students.length) : 0,
-    fullyPaid: students.filter((s) => s.status === 'Fully Paid').length,
-    pending: students.filter((s) => s.status === 'Pending').length,
+    fullyPaid: students.filter(fullyPaidAsOfEnd).length,
+    pending: students.filter((s) => !fullyPaidAsOfEnd(s)).length,
+    studentCount: students.length,
+    /** Each student in the cohort with what they had paid by the end date. */
+    cohort: students.map((student) => ({
+      student,
+      paid: paidAsOfEnd(student),
+      balance: Math.max(0, student.total - paidAsOfEnd(student)),
+      fullyPaid: fullyPaidAsOfEnd(student),
+    })),
     courseCounts: countBy(students, (s) => s.course),
     paymentChartData,
     paymentChartConfig,
@@ -183,6 +197,8 @@ export function computeReportMetrics({
       femalePct: percent(femaleStudents.length, students.length),
       malePct: percent(maleStudents.length, students.length),
       otherPct: percent(otherStudents.length, students.length),
+      unspecifiedStudents,
+      unspecifiedPct: percent(unspecifiedStudents.length, students.length),
     },
   }
 }

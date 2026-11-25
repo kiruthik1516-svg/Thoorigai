@@ -8,7 +8,8 @@ values
   ('00000000-0000-4000-8000-0000000000d2', 'tax-staff@example.test', '{"role":"staff"}', '{"full_name":"Tax Staff"}', 'authenticated', 'authenticated');
 
 insert into public.courses (id, name, fee, gst_inclusive)
-values ('tax-excl', 'Tax Exclusive Course', 4200000, false), ('tax-incl', 'Tax Inclusive Course', 3600000, true);
+values ('tax-excl', 'Tax Exclusive Course', 4200000, false), ('tax-incl', 'Tax Inclusive Course', 3600000, true),
+       ('tax-c', 'C', 1000, false);
 insert into public.gst_settings (id, rate, enabled) values ('default', 18, true)
 on conflict (id) do update set rate = 18, enabled = true;
 

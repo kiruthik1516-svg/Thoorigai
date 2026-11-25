@@ -59,7 +59,7 @@ async function postRedeemInvite(request: Request, requestId: string) {
     }
 
     const userId = authData.user.id
-    const adminClient = getSupabaseAdminClient(requestId)
+    const adminClient = getSupabaseAdminClient(requestId, userId)
 
     const { data: profile } = await adminClient.from('profiles').select('id, role').eq('id', userId).maybeSingle()
     if (!profile) {

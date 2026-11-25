@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { createHash } from 'node:crypto'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
 import { validateMutationRequest } from '@/lib/security/csrf'
@@ -25,18 +26,25 @@ async function postLogin(request: Request, requestId: string) {
   if (csrfResponse) return csrfResponse
   try {
     const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
-    const limit = await rateLimit(`login:${ip}`, 5, '15 m')
-    if (!limit.success) {
+    const parsed = credentialsSchema.safeParse(await request.json().catch(() => null))
+    if (!parsed.success) return NextResponse.json({ error: 'Unable to sign in. Please try again.' }, { status: 400 })
+    // Everyone in one office shares an IP, so the tight limit is per account (and IP); the IP-wide
+    // limit is looser and only stops bulk guessing. The email is hashed, never stored as a key.
+    const account = createHash('sha256').update(parsed.data.email.trim().toLowerCase()).digest('hex').slice(0, 32)
+    const limits = await Promise.all([
+      rateLimit(`login:${ip}:${account}`, 5, '15 m'),
+      rateLimit(`login:${ip}`, 40, '15 m'),
+    ])
+    const blocked = limits.find((limit) => !limit.success)
+    if (blocked) {
       return NextResponse.json(
-        { error: 'Unable to sign in. Please try again.' },
+        { error: 'Too many sign-in attempts. Please wait a few minutes and try again.' },
         {
           status: 429,
-          headers: { 'Retry-After': String(limit.retryAfterSeconds), 'x-request-id': requestId },
+          headers: { 'Retry-After': String(blocked.retryAfterSeconds), 'x-request-id': requestId },
         },
       )
     }
-    const parsed = credentialsSchema.safeParse(await request.json())
-    if (!parsed.success) return NextResponse.json({ error: 'Unable to sign in. Please try again.' }, { status: 400 })
     const supabase = await createClient(requestId)
     const { data: authData, error } = await supabase.auth.signInWithPassword(parsed.data)
     if (error) {
@@ -52,7 +60,7 @@ async function postLogin(request: Request, requestId: string) {
     }
     if (authData?.user) {
       // Query profiles table via adminClient to avoid RLS limitations and stale JWT claims
-      const adminClient = getSupabaseAdminClient(requestId)
+      const adminClient = getSupabaseAdminClient(requestId, authData.user.id)
       const { data: profile } = await adminClient
         .from('profiles')
         .select('role')

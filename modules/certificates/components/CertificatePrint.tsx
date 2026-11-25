@@ -31,12 +31,9 @@ function fmtDate(v: string) {
   return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
 }
 
+/** Placeholder shown until the certificate is issued; the database assigns the real number. */
 function genCertId() {
-  const y = new Date().getFullYear()
-  const n = Math.floor(1 + Math.random() * 9998)
-    .toString()
-    .padStart(4, '0')
-  return `TAI-${y}-${n}`
+  return `TAI-${new Date().getFullYear()}-XXXX`
 }
 
 function parseBatchToISO(batch: string) {
@@ -214,6 +211,9 @@ export function CertificatePrint({
       }
       const saved = (await res.json().catch(() => null)) as { data?: CertificateRecord } | null
       setVerificationCode(saved?.data?.verificationCode ?? null)
+      // The database numbers certificates; show the issued number instead of the draft one.
+      const issuedId = saved?.data?.certificateId
+      if (issuedId) setForm((current) => ({ ...current, certId: issuedId }))
       setSaveStatus('saved')
       setTimeout(() => setSaveStatus('idle'), 4000)
       return true

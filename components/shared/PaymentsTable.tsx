@@ -118,7 +118,13 @@ export function PaymentsTable({
                   </td>
                   {!compact && <td style={{ whiteSpace: 'nowrap', fontSize: '12px' }}>{p.date}</td>}
                   <td className="align-right" style={{ whiteSpace: 'nowrap' }}>
-                    <span className="amount text-xs font-bold text-gray-900">{money(p.amount)}</span>
+                    {p.cancelledAt ? (
+                      <span className="text-xs font-bold text-red-700" title={p.cancelReason ?? 'Cancelled'}>
+                        <s className="text-gray-400">{money(p.amount)}</s> Cancelled
+                      </span>
+                    ) : (
+                      <span className="amount text-xs font-bold text-gray-900">{money(p.amount)}</span>
+                    )}
                   </td>
                 </tr>
               )

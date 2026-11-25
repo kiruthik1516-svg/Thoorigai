@@ -6,6 +6,7 @@ import type { Receipt } from '@/lib/types'
 import { StudentDetail } from '@/modules/students/components/StudentDetail'
 import { useRef } from 'react'
 import { useRecordPaymentMutation } from '@/lib/query/mutations'
+import { indiaToday } from '@/lib/dates'
 
 export function StudentDetailClient({
   student,
@@ -64,7 +65,7 @@ export function StudentDetailClient({
               amount,
               method,
               paymentType,
-              date: new Date().toISOString().slice(0, 10),
+              date: indiaToday(),
             },
             idempotencyKey: paymentKey.current,
           })

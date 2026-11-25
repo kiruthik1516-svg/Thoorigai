@@ -183,7 +183,8 @@ export async function getCourse(courseId: string): Promise<Course | null> {
 }
 
 export async function listCourseOptions(): Promise<Course[]> {
-  const supabase = await createClient()
+  const [supabase, profile] = await Promise.all([createClient(), getCurrentProfile()])
+  const showFees = can(profile.role, 'payments', 'read')
   const { data, error } = await supabase
     .from('courses')
     .select('id,name,fee,duration,description,gst_inclusive,category_id,category:course_categories(id,name,duration)')
@@ -193,7 +194,7 @@ export async function listCourseOptions(): Promise<Course[]> {
   return (data ?? []).map((course) => ({
     id: String(course.id),
     name: String(course.name),
-    fee: paiseToRupees(Number(course.fee)),
+    fee: showFees ? paiseToRupees(Number(course.fee)) : 0,
     duration: String(course.duration),
     description: course.description ?? undefined,
     gstInclusive: Boolean(course.gst_inclusive),
@@ -216,5 +217,6 @@ export async function getCachedCourseOptions() {
   const { data, error } = await supabase.from('course_trainers').select('course_id').eq('trainer_id', profile.id)
   if (error) throw error
   const assigned = new Set((data ?? []).map((row) => String(row.course_id)))
-  return courses.filter((course) => assigned.has(course.id))
+  // Staff do not see money, so the fee is not sent to their pages.
+  return courses.filter((course) => assigned.has(course.id)).map((course) => ({ ...course, fee: 0 }))
 }

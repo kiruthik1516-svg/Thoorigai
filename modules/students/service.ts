@@ -1,10 +1,12 @@
 import 'server-only'
 import { createClient } from '@/lib/supabase/server'
-import { listStudents, listPayments, studentFromRow } from '@/lib/server-data'
+import { listStudents, listPayments, studentFromRow, withoutMoney } from '@/lib/server-data'
 import { normalizeJoined } from '@/lib/supabase/relations'
 import type { Role } from '@/lib/types'
 import { can } from '@/lib/auth/permissions'
-import { ForbiddenError, ValidationError } from '@/lib/http/errors'
+import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '@/lib/http/errors'
+import type { StudentUpdateInput } from './schema'
+import type { TablesUpdate } from '@/lib/supabase/database.types'
 import { paiseToRupees, rupeesToPaise } from '@/lib/money'
 import { generateVerificationCode } from '@/lib/utils'
 import { createStudentWithPaymentAtomic } from './repository'
@@ -12,7 +14,8 @@ import type { CreateStudentInput } from './schema'
 import { getCurrentProfile } from '@/lib/auth/current-profile'
 import { createHash } from 'node:crypto'
 import { idempotencyKeySchema } from '@/modules/payments/schema'
-import { createNotification } from '@/modules/notifications/service'
+import { createNotification, notifyCourseTrainers } from '@/modules/notifications/service'
+import { indiaToday } from '@/lib/dates'
 
 function authorizeStudent(role: Role, action: 'read' | 'create') {
   if (!can(role, 'students', action)) throw new ForbiddenError()
@@ -27,24 +30,105 @@ export async function listStudentPage(options: {
   categoryId?: string
   course?: string
 }) {
-  authorizeStudent((await getCurrentProfile()).role, 'read')
+  const { role } = await getCurrentProfile()
+  authorizeStudent(role, 'read')
   const supabase = await createClient()
   const allowedSort = ['register_id', 'name', 'created_at'] as const
   const sort = allowedSort.includes(options.sort as (typeof allowedSort)[number])
     ? (options.sort as (typeof allowedSort)[number])
     : 'register_id'
-  return listStudents(supabase, {
+  const result = await listStudents(supabase, {
     ...options,
     sort,
     direction: options.direction,
     categoryId: options.categoryId,
     course: options.course,
   })
+  return can(role, 'payments', 'read') ? result : { ...result, data: result.data.map(withoutMoney) }
+}
+
+/** Maps database errors from student writes to user-facing API errors. */
+function studentWriteError(error: { code?: string; message?: string }): never {
+  const message = error?.message ?? ''
+  if (error?.code === '42501') throw new ForbiddenError(message || 'You are not allowed to change this student.')
+  if (message.includes('COURSE_NOT_FOUND')) throw new ValidationError('Choose a course from the course list.')
+  if (message.includes('FEE_REQUIRED'))
+    throw new ValidationError('The course fee must be more than zero. Ask an admin to set the course fee.')
+  if (message.includes('FEE_BELOW_PAID')) throw new ValidationError('The fee cannot be less than what has been paid.')
+  if (message.includes('INITIAL_PAYMENT_EXCEEDS_TOTAL'))
+    throw new ValidationError('Paid amount cannot exceed total fees.')
+  if (message.includes('PAYMENT_DATE_IN_FUTURE')) throw new ValidationError('The payment date cannot be in the future.')
+  throw error
+}
+
+const STUDENT_COLUMNS: Record<keyof Omit<StudentUpdateInput, 'total'>, string> = {
+  name: 'name',
+  phone: 'phone',
+  course: 'course',
+  batch: 'batch',
+  gender: 'gender',
+  dob: 'dob',
+  altPhone: 'alt_phone',
+  maritalStatus: 'marital_status',
+  email: 'email',
+  country: 'country',
+  state: 'state',
+  city: 'city',
+  area: 'area',
+  studentSource: 'lead_source',
+  comments: 'comments',
+  knowledgeTags: 'knowledge_tags',
+}
+
+/** Edits a student. Staff edit students of their own courses (RLS); only admins change the fee. */
+export async function updateStudent(registerId: number, input: StudentUpdateInput) {
+  const { role } = await getCurrentProfile()
+  if (!can(role, 'students', 'update')) throw new ForbiddenError()
+  if (input.total !== undefined && !can(role, 'payments', 'update')) {
+    throw new ForbiddenError('Only admins can change a student’s fee.')
+  }
+  const updates: Record<string, unknown> = {}
+  // Keys come from STUDENT_COLUMNS, so this is a valid students update.
+  for (const [key, column] of Object.entries(STUDENT_COLUMNS)) {
+    const value = input[key as keyof typeof STUDENT_COLUMNS]
+    if (value !== undefined) updates[column] = value
+  }
+  if (input.total !== undefined) updates.total = rupeesToPaise(input.total)
+
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('students')
+    .update(updates as TablesUpdate<'students'>)
+    .eq('register_id', registerId)
+    .select('*')
+    .maybeSingle()
+  if (error) studentWriteError(error)
+  if (!data) throw new NotFoundError('Student not found.')
+  const student = studentFromRow(data)
+  return can(role, 'payments', 'read') ? student : withoutMoney(student)
+}
+
+/** Deletes a student who has no invoices or certificates (admins only). */
+export async function deleteStudent(registerId: number) {
+  const { role } = await getCurrentProfile()
+  if (!can(role, 'students', 'delete')) throw new ForbiddenError()
+  const supabase = await createClient()
+  const { data, error } = await supabase.from('students').delete().eq('register_id', registerId).select('id')
+  if (error) {
+    if (error.code === '23503') {
+      throw new ConflictError(
+        'This student has invoices or certificates, so the record must stay. Cancel the invoices instead.',
+      )
+    }
+    studentWriteError(error)
+  }
+  if (!data || data.length === 0) throw new NotFoundError('Student not found.')
+  return { deleted: true, registerId }
 }
 
 /** Creates a student and optional first payment through the atomic database workflow. */
 export async function createStudent(input: CreateStudentInput, idempotencyKey: string | null = null) {
-  const { role } = await getCurrentProfile()
+  const { role, id: profileId } = await getCurrentProfile()
   authorizeStudent(role, 'create')
   let idempotency: { key: string; hash: string } | null = null
   if (idempotencyKey !== null) {
@@ -52,13 +136,18 @@ export async function createStudent(input: CreateStudentInput, idempotencyKey: s
     if (!key.success) throw new ValidationError('The Idempotency-Key header is invalid.')
     idempotency = { key: key.data, hash: createHash('sha256').update(JSON.stringify(input)).digest('hex') }
   }
-  if (input.paid > input.total) throw new ValidationError('Paid amount cannot exceed total fees.')
+  if (can(role, 'payments', 'create') && input.total <= 0) {
+    throw new ValidationError('Enter the tuition fee for this student.')
+  }
+  if (input.paid > input.total && can(role, 'payments', 'create')) {
+    throw new ValidationError('Paid amount cannot exceed total fees.')
+  }
   // F-03: payments are admin-only. Staff enrol with the fee set and no initial payment.
   if (input.paid > 0 && !can(role, 'payments', 'create')) {
     throw new ForbiddenError('Only admins can record payments. Enrol the student without an initial payment.')
   }
   const client = await createClient()
-  const paymentDate = new Date().toISOString().slice(0, 10)
+  const paymentDate = indiaToday()
   const rpcResult = await createStudentWithPaymentAtomic(
     client,
     input,
@@ -66,11 +155,7 @@ export async function createStudent(input: CreateStudentInput, idempotencyKey: s
     paymentDate,
     generateVerificationCode(10),
     idempotency,
-  ).catch((error: { code?: string; message?: string }) => {
-    // F-28: staff may only enrol into courses they are assigned to.
-    if (error?.code === '42501') throw new ForbiddenError(error.message || 'You are not allowed to enrol this student.')
-    throw error
-  })
+  ).catch((error: { code?: string; message?: string }) => studentWriteError(error))
   const student = {
     ...studentFromRow(rpcResult.student),
     id: String(rpcResult.student.id),
@@ -99,17 +184,23 @@ export async function createStudent(input: CreateStudentInput, idempotencyKey: s
       }
     : null
 
-  void createNotification({
-    recipientRole: 'all',
+  // Admins see every enrolment; staff only hear about students in the courses they teach.
+  const notice = {
     title: 'New Student Enrolled',
     message: `${student.name} enrolled in ${student.course} (TAI-${student.registerId}).`,
-    type: 'success',
+    type: 'success' as const,
     link: `/students/${student.registerId}`,
     entityType: 'student',
     entityId: String(student.id),
-  })
+  }
+  void createNotification({ ...notice, recipientRole: 'admin' }, profileId)
+  void notifyCourseTrainers(student.course, notice, profileId)
 
-  return { message: 'Student created successfully', data: student, payment }
+  return {
+    message: 'Student created successfully',
+    data: can(role, 'payments', 'read') ? student : withoutMoney(student),
+    payment,
+  }
 }
 
 export async function getStudentDetail(registerId: number) {
@@ -144,7 +235,12 @@ export async function getStudentDetail(registerId: number) {
       certificateVerificationCode = document?.verification_code ? String(document.verification_code) : null
     }
   }
-  return { student: studentFromRow(row), payments, certificateVerificationCode }
+  const student = studentFromRow(row)
+  return {
+    student: can(role, 'payments', 'read') ? student : withoutMoney(student),
+    payments,
+    certificateVerificationCode,
+  }
 }
 
 export async function getStudentAcademicHistory(registerId: number) {

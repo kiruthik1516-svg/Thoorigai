@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { withApi } from '@/lib/http/handler'
 import { getSupabaseAdminClient } from '@/lib/supabase/admin'
 import { logger } from '@/lib/logger'
+import type { Json } from '@/lib/supabase/database.types'
 
 // Effectively permanent; Supabase Auth takes a Go duration string.
 const DISABLED_BAN_DURATION = '876000h'
@@ -14,8 +15,9 @@ async function syncAuthUser(
   requestId: string,
   userId: string,
   attributes: { app_metadata?: Record<string, unknown>; ban_duration?: string },
+  actorId?: string,
 ): Promise<boolean> {
-  const adminClient = getSupabaseAdminClient(requestId)
+  const adminClient = getSupabaseAdminClient(requestId, actorId)
   for (let attempt = 1; attempt <= 2; attempt += 1) {
     const { error } = await adminClient.auth.admin.updateUserById(userId, attributes)
     if (!error) return true
@@ -65,7 +67,7 @@ export const GET = withApi({ roles: ['admin'] }, async ({ supabase }) => {
 
 export const PATCH = withApi(
   { roles: ['admin'], body: updateUserSchema, userRateLimit: { limit: 20, window: '1 m' } },
-  async ({ supabase, body, requestId }) => {
+  async ({ supabase, body, requestId, user }) => {
     let authSynced = true
     if (body.role) {
       const { error } = await supabase!.rpc('admin_change_profile_role', {
@@ -100,10 +102,15 @@ export const PATCH = withApi(
         }
       }
 
-      authSynced = await syncAuthUser(requestId, body.userId, {
-        app_metadata: { role: body.role },
-        ...(reEnable ? { ban_duration: 'none' } : {}),
-      })
+      authSynced = await syncAuthUser(
+        requestId,
+        body.userId,
+        {
+          app_metadata: { role: body.role },
+          ...(reEnable ? { ban_duration: 'none' } : {}),
+        },
+        user?.id,
+      )
     }
 
     const profileUpdates: Record<string, unknown> = {}
@@ -123,8 +130,29 @@ export const PATCH = withApi(
 
 export const POST = withApi(
   { roles: ['admin'], body: createUserSchema, userRateLimit: { limit: 10, window: '1 m' } },
-  async ({ body, requestId }) => {
-    const adminClient = getSupabaseAdminClient(requestId)
+  async ({ body, requestId, user }) => {
+    const adminClient = getSupabaseAdminClient(requestId, user?.id)
+    // The profile row decides access; if it cannot be written the new account must not look ready.
+    const saveProfile = async (userId: string) => {
+      const { error: profileError } = await adminClient.from('profiles').upsert({
+        id: userId,
+        role: body.role,
+        full_name: body.fullName,
+        ...(body.contactDetails ? { contact_details: body.contactDetails as Json } : {}),
+        ...(body.metadata ? { metadata: body.metadata as Json } : {}),
+      })
+      if (profileError) {
+        logger.error({ event: 'profile_create_failed', requestId, userId }, 'Profile could not be saved for new user')
+        return Response.json(
+          {
+            error:
+              'The login was created but its profile could not be saved. Open Users and roles and set the role again.',
+          },
+          { status: 500 },
+        )
+      }
+      return null
+    }
 
     if (body.password) {
       const { data, error } = await adminClient.auth.admin.createUser({
@@ -138,11 +166,8 @@ export const POST = withApi(
         return Response.json({ error: error.message }, { status: 400 })
       }
       if (data.user) {
-        await adminClient.from('profiles').upsert({
-          id: data.user.id,
-          role: body.role,
-          full_name: body.fullName,
-        })
+        const failure = await saveProfile(data.user.id)
+        if (failure) return failure
       }
       return { created: true, user: { id: data.user?.id, email: data.user?.email } }
     }
@@ -154,14 +179,17 @@ export const POST = withApi(
       return Response.json({ error: error.message }, { status: 400 })
     }
     if (data.user) {
-      await adminClient.auth.admin.updateUserById(data.user.id, {
+      const { error: metaError } = await adminClient.auth.admin.updateUserById(data.user.id, {
         app_metadata: { role: body.role },
       })
-      await adminClient.from('profiles').upsert({
-        id: data.user.id,
-        role: body.role,
-        full_name: body.fullName,
-      })
+      if (metaError) {
+        logger.error(
+          { event: 'auth_user_sync_failed', requestId, userId: data.user.id },
+          'Role not set on invited user',
+        )
+      }
+      const failure = await saveProfile(data.user.id)
+      if (failure) return failure
     }
     return { invited: true, user: { id: data.user?.id, email: data.user?.email } }
   },
@@ -191,10 +219,12 @@ export const DELETE = withApi(
       throw error
     }
 
-    const authSynced = await syncAuthUser(requestId, query.userId, {
-      app_metadata: { role: 'pending' },
-      ban_duration: DISABLED_BAN_DURATION,
-    })
+    const authSynced = await syncAuthUser(
+      requestId,
+      query.userId,
+      { app_metadata: { role: 'pending' }, ban_duration: DISABLED_BAN_DURATION },
+      user?.id,
+    )
     return { disabled: true, userId: query.userId, authSynced }
   },
 )

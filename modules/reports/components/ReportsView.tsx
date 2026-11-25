@@ -17,7 +17,8 @@ import { money } from '@/lib/formatters'
 import { toCsv } from '@/lib/csv'
 import { PaymentsTable } from '@/components/shared/PaymentsTable'
 import { KpiCard } from '@/components/ui/KpiCard'
-import { computeReportMetrics } from './report/metrics'
+import { computeReportMetrics, type ReportMetrics } from './report/metrics'
+import { isoDateInIndia } from '@/lib/dates'
 import { CategoryPerformanceTiers } from './report/CategoryPerformanceTiers'
 import { GenderDemographicsChart } from './report/GenderDemographicsChart'
 import { ReportDateRangeBar } from './report/ReportDateRangeBar'
@@ -46,25 +47,47 @@ const PaymentClearanceChart = dynamic(
   { ssr: false, loading: chartPlaceholder },
 )
 
-function downloadStudentsCsv(students: Student[]) {
-  const rows = [
-    ['Student', 'Register ID', 'Course', 'Total Fees', 'Paid', 'Balance', 'Status', 'Source'],
-    ...students.map((student) => [
+/** The CSV matches the screen: the selected period's payments and each student's balance at its end. */
+function downloadReportCsv(metrics: ReportMetrics, range: ReportDateRange) {
+  const rows: string[][] = [
+    ['Report period', `${range.start} to ${range.end}`],
+    ['Revenue collected in period', String(metrics.revenue)],
+    ['GST in period', String(metrics.gstCollected)],
+    ['Students enrolled by end date', String(metrics.studentCount)],
+    ['Total course fees', String(metrics.totalFees)],
+    ['Paid by end date', String(metrics.totalPaid)],
+    ['Outstanding at end date', String(metrics.outstanding)],
+    [],
+    ['Student', 'Register ID', 'Course', 'Enrolled', 'Total Fees', 'Paid by end date', 'Balance', 'Status', 'Source'],
+    ...metrics.cohort.map(({ student, paid, balance, fullyPaid }) => [
       student.name,
       'TAI-' + student.registerId,
       student.course,
+      student.createdAt ? isoDateInIndia(new Date(student.createdAt)) : '-',
       String(student.total),
-      String(student.paid),
-      String(student.total - student.paid),
-      student.status,
+      String(paid),
+      String(balance),
+      fullyPaid ? 'Fully Paid' : 'Pending',
       student.studentSource || '-',
+    ]),
+    [],
+    ['Invoice', 'Date', 'Student', 'Register ID', 'Method', 'Amount', 'CGST', 'SGST'],
+    ...metrics.periodPayments.map((p) => [
+      p.invoice,
+      p.paymentDate ?? p.date,
+      p.student,
+      'TAI-' + p.studentId,
+      p.method,
+      String(p.amount),
+      String(p.cgst ?? 0),
+      String(p.sgst ?? 0),
     ]),
   ]
   const csv = toCsv(rows)
   const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }))
   const link = document.createElement('a')
   link.href = url
-  link.download = 'thoorigai-report-' + new Date().toISOString().slice(0, 10) + '.csv'
+  link.download = `thoorigai-report-${range.start}-to-${range.end}.csv`
   link.click()
   URL.revokeObjectURL(url)
 }
@@ -95,7 +118,7 @@ export function ReportsView({
       computeReportMetrics({ students, payments, categories, courses, startDate: startDateStr, endDate: endDateStr }),
     [students, payments, categories, courses, startDateStr, endDateStr],
   )
-  const download = () => downloadStudentsCsv(students)
+  const download = () => downloadReportCsv(metrics, range)
 
   return (
     <>
@@ -144,7 +167,7 @@ export function ReportsView({
         />
 
         {/* Row 2: Operational Health & Demographics */}
-        <KpiCard title="Total students" value={students.length} subtitle="Active enrollments" icon={Users} />
+        <KpiCard title="Total students" value={metrics.studentCount} subtitle="Enrolled by the end date" icon={Users} />
 
         <KpiCard
           title="Certificate eligible"
@@ -195,7 +218,7 @@ export function ReportsView({
             </div>
           </div>
 
-          <CourseEnrollmentChart courseCounts={metrics.courseCounts} totalStudents={students.length} />
+          <CourseEnrollmentChart courseCounts={metrics.courseCounts} totalStudents={metrics.studentCount} />
         </section>
 
         {/* ── GRAPH 3: Acquisition Channels (Radar Chart) ── */}
@@ -239,7 +262,7 @@ export function ReportsView({
             collectionRate={metrics.collectionRate}
             fullyPaid={metrics.fullyPaid}
             pending={metrics.pending}
-            totalStudents={students.length}
+            totalStudents={metrics.studentCount}
             totalPaid={metrics.totalPaid}
             outstanding={metrics.outstanding}
           />
@@ -261,6 +284,7 @@ export function ReportsView({
             femalePct={metrics.gender.femalePct}
             malePct={metrics.gender.malePct}
             otherPct={metrics.gender.otherPct}
+            unspecifiedCount={metrics.gender.unspecifiedStudents.length}
           />
         </section>
       </div>

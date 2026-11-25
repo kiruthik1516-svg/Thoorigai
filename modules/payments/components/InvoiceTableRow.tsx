@@ -61,7 +61,18 @@ export function InvoiceTableRow({
           {payment.method}
         </span>
       </td>
-      <td className="py-3 px-4 text-right font-bold text-[var(--text)]">{money(payment.amount)}</td>
+      <td className="py-3 px-4 text-right font-bold text-[var(--text)]">
+        {payment.cancelledAt ? (
+          <span title={payment.cancelReason ?? 'Cancelled'}>
+            <s className="text-[var(--mute)]">{money(payment.amount)}</s>{' '}
+            <span className="ml-1 rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-[10px] font-bold text-red-700">
+              Cancelled
+            </span>
+          </span>
+        ) : (
+          money(payment.amount)
+        )}
+      </td>
     </tr>
   )
 }

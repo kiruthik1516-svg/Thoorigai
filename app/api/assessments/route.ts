@@ -2,145 +2,32 @@ import { NextResponse } from 'next/server'
 import type { SupabaseClient, User } from '@supabase/supabase-js'
 import { assessmentSchema, safeFormUrl, safeSheetUrl } from '@/lib/validation'
 import { unexpectedApiError } from '@/lib/api-response'
-import { normalizeJoined } from '@/lib/supabase/relations'
 import z from 'zod'
 import { pagePaginationFromSearchParams } from '@/lib/pagination'
 import { withApi } from '@/lib/http/handler'
 import { rolesFor } from '@/lib/auth/permissions'
-import type { Database, TablesInsert } from '@/lib/supabase/database.types'
-
-type AssessmentListItem = {
-  id: string
-  courseId: string
-  courseName: string | undefined
-  title: string
-  maxScore: number
-  assessmentDate: string
-  formUrl: ReturnType<typeof safeFormUrl>
-  sheetUrl: ReturnType<typeof safeSheetUrl>
-  createdBy: { id: string; fullName: string; role: string } | null
-  createdAt: string | null
-}
+import type { Database, TablesInsert, TablesUpdate } from '@/lib/supabase/database.types'
+import { listAssessmentPage } from '@/modules/assessments/service'
 
 // F-29: authentication, the role check, CSRF and body validation happen in withApi.
-async function getAssessments(req: Request, supabase: SupabaseClient<Database>) {
+async function getAssessments(req: Request) {
   try {
     const { searchParams } = new URL(req.url)
-    const courseId = searchParams.get('courseId')
+    const courseId = searchParams.get('courseId') ?? ''
     const pagination = pagePaginationFromSearchParams(searchParams)
-
-    let query = supabase.from('assessments').select(
-      `
-        id,
-        course_id,
-        title,
-        max_score,
-        assessment_date,
-        form_url,
-        sheet_url,
-        created_by,
-        created_at,
-        courses!assessments_course_id_fkey (id, name),
-        profiles!assessments_created_by_fkey (id, full_name, role)
-      `,
-      { count: 'exact' },
-    )
-
-    // Apply filters
-    if (courseId) {
-      query = query.eq('course_id', courseId)
-    }
-
-    let formattedData: AssessmentListItem[] = []
-    let totalCount = 0
-
-    const { data, error, count } = await query
-      .order('assessment_date', { ascending: false })
-      .range(pagination.offset, pagination.offset + pagination.limit - 1)
-
-    if (!error && data) {
-      totalCount = count || data.length
-      formattedData = data.map((record) => {
-        const course = normalizeJoined(record.courses)
-        const profile = normalizeJoined(record.profiles)
-        return {
-          id: record.id,
-          courseId: record.course_id,
-          courseName: course?.name,
-          title: record.title,
-          maxScore: record.max_score,
-          assessmentDate: record.assessment_date,
-          formUrl: safeFormUrl(record.form_url),
-          sheetUrl: safeSheetUrl(record.sheet_url),
-          createdBy: profile
-            ? {
-                id: profile.id,
-                fullName: profile.full_name,
-                role: profile.role,
-              }
-            : null,
-          createdAt: record.created_at,
-        }
-      })
-    } else {
-      // Resilient fallback query if specific joined foreign keys or optional columns fail
-      let fbQuery = supabase
-        .from('assessments')
-        .select('id, course_id, title, max_score, assessment_date, created_by, created_at, form_url, sheet_url', {
-          count: 'exact',
-        })
-      if (courseId) {
-        fbQuery = fbQuery.eq('course_id', courseId)
-      }
-      const fbResult = await fbQuery
-        .order('assessment_date', { ascending: false })
-        .range(pagination.offset, pagination.offset + pagination.limit - 1)
-
-      const records = fbResult.data ?? []
-      totalCount = fbResult.count ?? records.length
-
-      const courseIds = Array.from(new Set(records.map((r) => r.course_id)))
-      const userIds = Array.from(new Set(records.map((r) => r.created_by).filter((id): id is string => Boolean(id))))
-      let courseMap = new Map<string, string>()
-      let profileMap = new Map<string, { id: string; fullName: string; role: string }>()
-
-      if (courseIds.length > 0) {
-        const { data: cData } = await supabase.from('courses').select('id, name').in('id', courseIds)
-        if (cData) courseMap = new Map(cData.map((c) => [c.id, c.name]))
-      }
-      if (userIds.length > 0) {
-        const { data: pData } = await supabase.from('profiles').select('id, full_name, role').in('id', userIds)
-        if (pData) {
-          profileMap = new Map(
-            pData.map((p) => [
-              p.id,
-              { id: String(p.id), fullName: String(p.full_name || ''), role: String(p.role || 'staff') },
-            ]),
-          )
-        }
-      }
-
-      formattedData = records.map((record) => ({
-        id: record.id,
-        courseId: record.course_id,
-        courseName: courseMap.get(String(record.course_id)) ?? '',
-        title: record.title,
-        maxScore: record.max_score,
-        assessmentDate: record.assessment_date,
-        formUrl: safeFormUrl(record.form_url),
-        sheetUrl: safeSheetUrl(record.sheet_url),
-        createdBy: profileMap.get(String(record.created_by)) ?? null,
-        createdAt: record.created_at,
-      }))
-    }
-
-    return NextResponse.json({
-      data: formattedData,
-      count: formattedData.length,
+    const result = await listAssessmentPage({
       page: pagination.page,
       pageSize: pagination.pageSize,
-      totalCount,
-      hasMore: pagination.offset + pagination.limit < totalCount,
+      search: searchParams.get('search') ?? '',
+      courseId,
+    })
+    return NextResponse.json({
+      data: result.data,
+      count: result.data.length,
+      page: pagination.page,
+      pageSize: pagination.pageSize,
+      totalCount: result.totalCount,
+      hasMore: pagination.offset + pagination.limit < result.totalCount,
     })
   } catch (error) {
     return unexpectedApiError(error, 'Unable to load assessments')
@@ -226,10 +113,75 @@ async function postAssessment(
   }
 }
 
-export const GET = withApi({ roles: rolesFor('assessments', 'read') }, async ({ request, supabase }) =>
-  getAssessments(request, supabase!),
-)
+export const GET = withApi({ roles: rolesFor('assessments', 'read') }, async ({ request }) => getAssessments(request))
 export const POST = withApi(
   { roles: rolesFor('assessments', 'create'), body: assessmentSchema },
   async ({ body, supabase, user }) => postAssessment(body, supabase!, user!),
+)
+
+const assessmentIdQuery = z.object({ id: z.guid() })
+const assessmentUpdateSchema = assessmentSchema.omit({ courseId: true }).partial()
+
+/** PATCH /api/assessments?id=… — edit title, maximum score, date or links (RLS: own courses). */
+export const PATCH = withApi(
+  { roles: rolesFor('assessments', 'update'), query: assessmentIdQuery, body: assessmentUpdateSchema },
+  async ({ query, body, supabase }) => {
+    const updates: TablesUpdate<'assessments'> = {}
+    if (body.title !== undefined) updates.title = body.title
+    if (body.maxScore !== undefined) updates.max_score = body.maxScore
+    if (body.assessmentDate !== undefined) updates.assessment_date = body.assessmentDate
+    if (body.formUrl !== undefined) updates.form_url = body.formUrl
+    if (body.sheetUrl !== undefined) updates.sheet_url = body.sheetUrl
+    if (Object.keys(updates).length === 0) {
+      return NextResponse.json({ error: { message: 'Nothing to update.' } }, { status: 400 })
+    }
+    if (updates.max_score !== undefined) {
+      const { data: top, error: topError } = await supabase!
+        .from('assessment_results')
+        .select('score')
+        .eq('assessment_id', query.id)
+        .order('score', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+      if (topError) throw topError
+      if (top && Number(top.score) > Number(updates.max_score)) {
+        return NextResponse.json(
+          { error: { message: `A student already scored ${top.score}; the maximum cannot be lower.` } },
+          { status: 400 },
+        )
+      }
+    }
+    const { data, error } = await supabase!
+      .from('assessments')
+      .update(updates)
+      .eq('id', query.id)
+      .select('id, title, max_score, assessment_date, form_url, sheet_url')
+      .maybeSingle()
+    if (error) throw error
+    if (!data) return NextResponse.json({ error: { message: 'Assessment not found' } }, { status: 404 })
+    return NextResponse.json({
+      data: {
+        id: data.id,
+        title: data.title,
+        maxScore: data.max_score,
+        assessmentDate: data.assessment_date,
+        formUrl: safeFormUrl(data.form_url),
+        sheetUrl: safeSheetUrl(data.sheet_url),
+      },
+      message: 'Assessment updated',
+    })
+  },
+)
+
+/** DELETE /api/assessments?id=… — removes the assessment and its scores (RLS: own courses). */
+export const DELETE = withApi(
+  { roles: rolesFor('assessments', 'delete'), query: assessmentIdQuery },
+  async ({ query, supabase }) => {
+    const { data, error } = await supabase!.from('assessments').delete().eq('id', query.id).select('id')
+    if (error) throw error
+    if (!data || data.length === 0) {
+      return NextResponse.json({ error: { message: 'Assessment not found' } }, { status: 404 })
+    }
+    return NextResponse.json({ data: { deleted: true }, message: 'Assessment deleted' })
+  },
 )

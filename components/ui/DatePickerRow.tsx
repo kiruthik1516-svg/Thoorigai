@@ -2,6 +2,7 @@
 
 import React from 'react'
 import { ChevronLeft, ChevronRight, Calendar } from 'lucide-react'
+import { addDaysIso, indiaToday } from '@/lib/dates'
 
 export interface DatePickerRowProps {
   currentDate: string // YYYY-MM-DD
@@ -11,19 +12,15 @@ export interface DatePickerRowProps {
 
 export function DatePickerRow({ currentDate, onDateChange, className = '' }: DatePickerRowProps) {
   const handlePrev = () => {
-    const d = new Date(currentDate)
-    d.setDate(d.getDate() - 1)
-    onDateChange(d.toISOString().slice(0, 10))
+    onDateChange(addDaysIso(currentDate, -1))
   }
 
   const handleToday = () => {
-    onDateChange(new Date().toISOString().slice(0, 10))
+    onDateChange(indiaToday())
   }
 
   const handleNext = () => {
-    const d = new Date(currentDate)
-    d.setDate(d.getDate() + 1)
-    onDateChange(d.toISOString().slice(0, 10))
+    onDateChange(addDaysIso(currentDate, 1))
   }
 
   const formattedDate = new Date(currentDate).toLocaleDateString(undefined, {

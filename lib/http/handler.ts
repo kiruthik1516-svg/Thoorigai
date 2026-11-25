@@ -189,10 +189,12 @@ export function withApi<TOptions extends ApiOptions, TResult>(
           .single()
         if (profileError) throw new InternalError()
 
-        if (profile?.role !== 'admin' && profile?.role !== 'staff') {
+        // Pending accounts are only let through to routes that name them (signing out).
+        const allowsPending = (options.roles ?? []).includes('pending')
+        if (profile?.role !== 'admin' && profile?.role !== 'staff' && !(allowsPending && profile?.role === 'pending')) {
           throw new UnauthorizedError('An authorized profile is required.')
         }
-        role = profile.role
+        role = profile.role as Role
         requireRole(role, options.roles ?? [])
         const userLimit =
           options.userRateLimit ?? (MUTATION_METHODS.includes(request.method) ? DEFAULT_MUTATION_RATE_LIMIT : undefined)

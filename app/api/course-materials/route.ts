@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server'
 import type { SupabaseClient, User } from '@supabase/supabase-js'
 import { getSupabaseAdminClient } from '@/lib/supabase/admin'
+import { lookupProfileNames } from '@/lib/supabase/profile-names'
+import { materialDownloadPath } from '@/modules/materials/service'
+import { logger } from '@/lib/logger'
 import { courseMaterialSchema, courseMaterialResponseSchema } from '@/lib/validation'
 import { unexpectedApiError } from '@/lib/api-response'
 import { pagePaginationFromSearchParams } from '@/lib/pagination'
@@ -18,77 +21,40 @@ async function getCourseMaterials(req: Request, requestId: string, supabase: Sup
     const courseId = searchParams.get('courseId')
     const pagination = pagePaginationFromSearchParams(searchParams)
 
-    let query = supabase.from('course_materials').select(
-      `
-        id,
-        course_id,
-        title,
-        type,
-        storage_path,
-        uploaded_by,
-        created_at,
-        courses!course_materials_course_id_fkey (id, name),
-        profiles!course_materials_uploaded_by_fkey (id, full_name, role)
-      `,
-      { count: 'exact' },
-    )
-
-    // Apply filters
-    if (courseId) {
-      query = query.eq('course_id', courseId)
-    }
+    let query = supabase
+      .from('course_materials')
+      .select(
+        'id, course_id, title, type, storage_path, uploaded_by, created_at, courses!course_materials_course_id_fkey (id, name)',
+        { count: 'exact' },
+      )
+    if (courseId) query = query.eq('course_id', courseId)
 
     const { data, error, count } = await query
       .order('created_at', { ascending: false })
+      .order('id', { ascending: false })
       .range(pagination.offset, pagination.offset + pagination.limit - 1)
-
     if (error) throw error
 
-    // For each course material, generate a signed URL for the file
-    const adminSupabase = getSupabaseAdminClient(requestId)
-    const materialsWithSignedUrl = await Promise.all(
-      (data || []).map(async (material) => {
-        const course = normalizeJoined(material.courses)
-        const profile = normalizeJoined(material.profiles)
-        let signedUrl: string | null = null
-        try {
-          const { data: signedUrlData, error: signedUrlError } = await adminSupabase.storage
-            .from('course-materials')
-            .createSignedUrl(material.storage_path, 300)
-          if (!signedUrlError && signedUrlData?.signedUrl) {
-            signedUrl = signedUrlData.signedUrl
-          }
-        } catch {
-          signedUrl = null
-        }
-
-        return {
-          ...material,
-          course,
-          profile,
-          signedUrl,
-        }
-      }),
+    const uploaders = await lookupProfileNames(
+      supabase,
+      (data || []).map((material) => (material.uploaded_by ? String(material.uploaded_by) : null)),
     )
-
-    // Format the response for easier consumption
-    const formattedData = materialsWithSignedUrl.map((material) => ({
-      id: material.id,
-      courseId: material.course_id,
-      courseName: material.course?.name,
-      title: material.title,
-      type: material.type,
-      storagePath: material.storage_path,
-      uploadedBy: material.profile
-        ? {
-            id: material.profile.id,
-            fullName: material.profile.full_name,
-            role: material.profile.role,
-          }
-        : null,
-      createdAt: material.created_at,
-      signedUrl: material.signedUrl,
-    }))
+    const formattedData = (data || []).map((material) => {
+      const course = normalizeJoined(material.courses)
+      const uploader = material.uploaded_by ? uploaders.get(String(material.uploaded_by)) : undefined
+      return {
+        id: material.id,
+        courseId: material.course_id,
+        courseName: course?.name,
+        title: material.title,
+        type: material.type,
+        storagePath: material.storage_path,
+        uploadedBy: uploader ? { id: uploader.id, fullName: uploader.fullName, role: uploader.role } : null,
+        createdAt: material.created_at,
+        // Signed on click by /api/course-materials/download, so the link never goes stale.
+        signedUrl: materialDownloadPath(String(material.id)),
+      }
+    })
 
     return NextResponse.json({
       data: formattedData,
@@ -141,7 +107,8 @@ async function postCourseMaterial(req: Request, requestId: string, supabase: Sup
 
     // We'll create a storage path that is unique to avoid collisions
     // We can use a combination of courseId, title, and a random string or timestamp
-    const storagePath = `${crypto.randomUUID()}.${extension}`
+    // Objects live under the course id; storage RLS checks the uploader may access that course.
+    const storagePath = `${parsedBody.courseId}/${crypto.randomUUID()}.${extension}`
 
     // Uploads use the authenticated user client so Storage RLS remains in force.
     const { data: uploadData, error: uploadError } = await supabase.storage
@@ -170,22 +137,8 @@ async function postCourseMaterial(req: Request, requestId: string, supabase: Sup
     if (courseMaterialError) {
       // If the database insert fails, we should try to delete the uploaded file to avoid orphaned files
       // Note: This is a best-effort cleanup; if this fails, we might have an orphaned file.
-      await supabase.storage.from('course-materials').remove([storagePath])
+      await getSupabaseAdminClient(requestId, user.id).storage.from('course-materials').remove([storagePath])
       return unexpectedApiError(courseMaterialError, 'Failed to save course material metadata')
-    }
-
-    // Generate a signed URL for the uploaded file (short-lived)
-    const adminSupabase = getSupabaseAdminClient(requestId)
-    let uploadSignedUrl: string | null = null
-    try {
-      const { data: signedUrlData, error: signedUrlError } = await adminSupabase.storage
-        .from('course-materials')
-        .createSignedUrl(storagePath, 300)
-      if (!signedUrlError && signedUrlData?.signedUrl) {
-        uploadSignedUrl = signedUrlData.signedUrl
-      }
-    } catch {
-      uploadSignedUrl = null
     }
 
     // Format the response
@@ -202,7 +155,7 @@ async function postCourseMaterial(req: Request, requestId: string, supabase: Sup
         role: profile.role,
       },
       createdAt: courseMaterial.created_at,
-      signedUrl: uploadSignedUrl,
+      signedUrl: materialDownloadPath(String(courseMaterial.id)),
     }
 
     return NextResponse.json(
@@ -235,7 +188,7 @@ export const POST = withApi(
 const deleteMaterialQuery = z.object({ id: z.guid() })
 export const DELETE = withApi(
   { roles: rolesFor('materials', 'delete'), query: deleteMaterialQuery },
-  async ({ supabase, query }) => {
+  async ({ supabase, query, requestId, user }) => {
     const client = supabase!
     const { data: material, error: lookupError } = await client
       .from('course_materials')
@@ -244,10 +197,16 @@ export const DELETE = withApi(
       .maybeSingle()
     if (lookupError) throw lookupError
     if (!material) return NextResponse.json({ error: 'Material not found.' }, { status: 404 })
-    const { error: storageError } = await client.storage.from('course-materials').remove([material.storage_path])
-    if (storageError) throw storageError
+    // Remove the record first: if the file removal then fails, an orphaned file is harmless, while
+    // a record pointing at a deleted file would show a broken download.
     const { error: deleteError } = await client.from('course_materials').delete().eq('id', material.id)
     if (deleteError) throw deleteError
+    const { error: storageError } = await getSupabaseAdminClient(requestId, user?.id)
+      .storage.from('course-materials')
+      .remove([material.storage_path])
+    if (storageError) {
+      logger.warn({ event: 'material_file_not_removed', requestId }, 'Course material file could not be removed')
+    }
     return { deleted: true }
   },
 )

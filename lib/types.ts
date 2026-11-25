@@ -74,6 +74,8 @@ export type Student = {
   knowledgeTags?: string[]
   createdAt?: string
   updatedAt?: string
+  /** True when the viewer may not see fees (staff): total, paid and status are blanked server-side. */
+  moneyHidden?: boolean
 }
 
 export const PAYMENT_TYPES = [
@@ -133,6 +135,9 @@ export type Payment = {
   /** Verification code for public verification */
   verification_code?: string
   createdAt?: string
+  /** Set when an admin cancelled the payment; the invoice stays on record but no longer counts. */
+  cancelledAt?: string
+  cancelReason?: string
 }
 
 export type Receipt = Payment & {
@@ -156,6 +161,9 @@ export type CertificateRecord = {
   trainerName?: string
   customNote?: string
   issuedAt?: string
+  /** Set when an admin revoked the certificate; its QR code no longer verifies. */
+  revokedAt?: string
+  revokeReason?: string
 }
 
 export type InviteCode = {

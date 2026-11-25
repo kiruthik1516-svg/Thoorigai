@@ -1,4 +1,6 @@
-import { ArrowLeft, Printer, Plus, RefreshCw } from 'lucide-react'
+import { ArrowLeft, Ban, Printer, Plus, RefreshCw } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { apiErrorMessage } from '@/lib/api/error-message'
 import { Button } from '@/components/ui/button'
 import type { Course, Payment, Student } from '@/lib/types'
 import { money } from '@/lib/formatters'
@@ -435,6 +437,7 @@ export function InvoicePrint({
                 <RefreshCw size={16} className="mr-2" /> Reset
               </Button>
             </div>
+            <CancelInvoiceControl payment={payment} />
           </div>
         </aside>
 
@@ -458,6 +461,7 @@ export function InvoicePrint({
                   verificationCode={payment.verification_code}
                   qrCode={qrCode}
                   balanceAfter={balanceAfter}
+                  cancelled={Boolean(payment.cancelledAt)}
                   copy="Customer Copy"
                 />
                 <InvoiceCopy
@@ -472,6 +476,7 @@ export function InvoicePrint({
                   verificationCode={payment.verification_code}
                   qrCode={qrCode}
                   balanceAfter={balanceAfter}
+                  cancelled={Boolean(payment.cancelledAt)}
                   copy="Office Copy"
                 />
               </article>
@@ -505,6 +510,7 @@ function InvoiceCopy({
   qrCode,
   copy,
   balanceAfter,
+  cancelled = false,
 }: {
   form: InvoiceFormState
   taxableValue: number
@@ -518,14 +524,45 @@ function InvoiceCopy({
   qrCode: string | null
   copy: string
   balanceAfter?: number
+  cancelled?: boolean
 }) {
   const course = effectiveCourse(form) || '—'
   return (
-    <section className="ttk-invoice-copy">
+    <section className="ttk-invoice-copy" style={cancelled ? { position: 'relative' } : undefined}>
+      {cancelled && (
+        <div
+          aria-label="This invoice is cancelled"
+          style={{
+            position: 'absolute',
+            inset: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            pointerEvents: 'none',
+            zIndex: 5,
+          }}
+        >
+          <span
+            style={{
+              transform: 'rotate(-18deg)',
+              border: '4px solid #b91c1c',
+              color: '#b91c1c',
+              padding: '4px 18px',
+              fontSize: 44,
+              fontWeight: 800,
+              letterSpacing: 6,
+              opacity: 0.55,
+            }}
+          >
+            CANCELLED
+          </span>
+        </div>
+      )}
       <div className="ttk-invoice-top">
         <div>
           <h2>
             {isPaymentReceipt(form.invoiceNumber) ? 'PAYMENT RECEIPT' : 'INVOICE'} - {form.invoiceNumber || '—'}
+            {cancelled ? ' (CANCELLED)' : ''}
           </h2>
           <span>Receipt ID - [ {form.receiptId || '—'} ]</span>
         </div>
@@ -639,5 +676,84 @@ function InvoiceCopy({
         <div className="ttk-authorized">Authorized Signature</div>
       </div>
     </section>
+  )
+}
+
+/** Cancelling keeps the invoice number on record; it stops counting toward paid and revenue. */
+function CancelInvoiceControl({ payment }: { payment: Payment }) {
+  const router = useRouter()
+  const [open, setOpen] = useState(false)
+  const [reason, setReason] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  if (!payment.id || !payment.invoice) return null
+  if (payment.cancelledAt) {
+    return (
+      <p role="status" className="mt-2 text-xs font-semibold text-red-700">
+        Cancelled on{' '}
+        {new Date(payment.cancelledAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+        {payment.cancelReason ? `: ${payment.cancelReason}` : ''}
+      </p>
+    )
+  }
+  if (!open) {
+    return (
+      <Button variant="ghost" size="sm" className="mt-2 text-red-700" onClick={() => setOpen(true)}>
+        <Ban size={14} className="mr-1" /> Cancel this invoice
+      </Button>
+    )
+  }
+
+  const submit = async () => {
+    setBusy(true)
+    setError(null)
+    try {
+      const res = await fetch('/api/payments/cancel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ paymentId: payment.id, reason }),
+      })
+      if (!res.ok) throw new Error(apiErrorMessage(await res.json().catch(() => null), 'Could not cancel the invoice.'))
+      setOpen(false)
+      router.refresh()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not cancel the invoice.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="mt-2 space-y-2">
+      <label className="edit-label">
+        Reason for cancelling
+        <textarea
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+          rows={2}
+          maxLength={500}
+          className="edit-input edit-input-light"
+          placeholder="e.g. Entered twice"
+        />
+      </label>
+      <p className="text-[11px] text-gray-500">
+        The invoice keeps its number and stays on record marked cancelled. It no longer counts toward the student&apos;s
+        paid amount or revenue, and its QR code stops verifying. This cannot be undone.
+      </p>
+      {error && (
+        <p role="alert" className="text-xs text-red-700">
+          {error}
+        </p>
+      )}
+      <div className="flex gap-2">
+        <Button variant="default" size="sm" disabled={busy || reason.trim().length < 3} onClick={submit}>
+          {busy ? 'Cancelling…' : 'Confirm cancel'}
+        </Button>
+        <Button variant="secondary" size="sm" disabled={busy} onClick={() => setOpen(false)}>
+          Keep invoice
+        </Button>
+      </div>
+    </div>
   )
 }

@@ -3,10 +3,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const mocks = vi.hoisted(() => ({
   results: {} as Record<string, { data?: any; error?: Error | null }[]>,
   client: {} as any,
+  profile: { id: 'u1', role: 'admin', fullName: 'Admin' } as { id: string; role: string; fullName: string },
 }))
 
 vi.mock('server-only', () => ({}))
 vi.mock('@/lib/supabase/server', () => ({ createClient: async () => mocks.client }))
+vi.mock('@/lib/auth/current-profile', () => ({ getCurrentProfile: async () => mocks.profile }))
 
 import { getAllStudents, getAllPayments, getStaffAcademicReportData } from './service'
 
@@ -20,7 +22,8 @@ function makeClient() {
       const queue = mocks.results[table] ?? []
       const current = queue.shift() ?? { data: [], error: null }
       const query: any = {}
-      for (const method of ['select', 'order', 'limit', 'eq']) {
+      // Reads are paged (range); the next call for the table returns an empty page and ends the loop.
+      for (const method of ['select', 'order', 'limit', 'eq', 'range', 'is', 'gte', 'lte']) {
         query[method] = vi.fn(() => query)
       }
       query.then = (resolve: (value: any) => unknown, reject: (error: unknown) => unknown) =>
@@ -35,6 +38,34 @@ describe('reports service', () => {
     vi.clearAllMocks()
     mocks.results = {}
     mocks.client = makeClient()
+    mocks.profile = { id: 'u1', role: 'admin', fullName: 'Admin' }
+  })
+
+  it('reads every page of students, not just the first 1000 rows', async () => {
+    const page = (start: number, count: number) =>
+      Array.from({ length: count }, (_, i) => ({
+        id: `s${start + i}`,
+        register_id: start + i,
+        name: 'S',
+        course: 'C',
+        total: 100,
+        paid: 0,
+      }))
+    setResults('students', { data: page(1, 1000), error: null }, { data: page(1001, 5), error: null })
+    const students = await getAllStudents()
+    expect(students).toHaveLength(1005)
+  })
+
+  it('never gives staff fee or paid amounts', async () => {
+    mocks.profile = { id: 'u2', role: 'staff', fullName: 'Staff' }
+    setResults('students', {
+      data: [
+        { id: 's1', register_id: 101, name: 'Jane', course: 'C', total: 5000000, paid: 2500000, status: 'Pending' },
+      ],
+      error: null,
+    })
+    const [student] = await getAllStudents()
+    expect(student).toMatchObject({ total: 0, paid: 0, moneyHidden: true })
   })
 
   it('fetches all students and maps them', async () => {

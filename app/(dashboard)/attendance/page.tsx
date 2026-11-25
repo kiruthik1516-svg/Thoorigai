@@ -3,6 +3,7 @@ import { listAttendancePage } from '@/modules/attendance/service'
 import { parseCursorListQuery } from '@/modules/shared/list-query'
 import { RecordList } from '@/modules/shared/components/RecordList'
 import { createClient } from '@/lib/supabase/server'
+import { likePattern } from '@/lib/server-data'
 import { getCachedCourseOptions, listCourseCategories } from '@/modules/courses/service'
 import {
   AttendanceClientView,
@@ -10,6 +11,7 @@ import {
   type StudentSummaryRow,
 } from '@/modules/attendance/components/AttendanceClientView'
 import Link from 'next/link'
+import { indiaToday } from '@/lib/dates'
 
 function AttendanceStatusBadge({ status }: { status: string }) {
   switch (status) {
@@ -73,15 +75,17 @@ export default async function AttendancePage({ searchParams }: PageProps<'/atten
         supabase
           .from('students')
           .select('id,register_id,name')
-          .eq('course', selectedCourse.name)
+          // Same rule as the database (case-insensitive name match), and no silent 100-student cap.
+          .ilike('course', likePattern(selectedCourse.name.trim()).slice(1, -1))
           .order('name')
-          .limit(100),
+          .order('register_id')
+          .limit(1000),
         supabase
           .from('attendance')
           .select('student_id,status,students!attendance_student_id_fkey(register_id)')
           .eq('course_id', courseId)
           .eq('session_date', date)
-          .limit(100),
+          .limit(1000),
       ])
       if (studentError) throw studentError
       if (attendanceError) throw attendanceError
@@ -218,7 +222,7 @@ export default async function AttendancePage({ searchParams }: PageProps<'/atten
       courses={courses}
       categories={categories}
       selectedCourseId={courseId}
-      selectedDate={date ?? new Date().toISOString().slice(0, 10)}
+      selectedDate={date ?? indiaToday()}
       roster={roster}
       courseReports={courseRows}
       studentReports={studentRows}

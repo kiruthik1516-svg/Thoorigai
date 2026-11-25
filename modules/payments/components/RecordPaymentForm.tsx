@@ -30,6 +30,7 @@ import { money } from '@/lib/formatters'
 import { PAYMENT_TYPES, type Course } from '@/lib/types'
 import { calculateGstForRupees, differenceRupees, percentageOfRupees } from '@/lib/money'
 import { useRecordPaymentMutation } from '@/lib/query/mutations'
+import { indiaToday } from '@/lib/dates'
 
 export interface StudentPaymentCandidate {
   id: string
@@ -74,7 +75,7 @@ export function RecordPaymentForm({ initialStudent = null, students, courses, gs
     return ''
   })
   const [method, setMethod] = useState<string>('UPI')
-  const [date, setDate] = useState<string>(() => new Date().toISOString().slice(0, 10))
+  const [date, setDate] = useState<string>(() => indiaToday())
   const [transactionId, setTransactionId] = useState<string>('')
   const [customNote, setCustomNote] = useState<string>('')
   const [paymentType, setPaymentType] = useState<string>('')
@@ -179,7 +180,7 @@ export function RecordPaymentForm({ initialStudent = null, students, courses, gs
         studentId: selectedStudent.registerId,
         amount: numAmount,
         method,
-        date: date || new Date().toISOString().slice(0, 10),
+        date: date || indiaToday(),
         paymentType: paymentType || undefined,
         transactionId: transactionId.trim() || undefined,
         customNote: customNote.trim() || undefined,

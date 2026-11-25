@@ -45,7 +45,7 @@ describe('notifications service', () => {
         if (table === 'notification_reads') {
           return {
             select: vi.fn(() => ({
-              eq: vi.fn(async () => ({ data: mocks.readsData, error: null })),
+              eq: vi.fn(() => ({ in: vi.fn(async () => ({ data: mocks.readsData, error: null })) })),
             })),
             upsert: vi.fn(async (rows: any) => ({ data: rows, error: mocks.error })),
           }
@@ -129,14 +129,14 @@ describe('notifications service', () => {
     expect(result[5].link).toBe('/')
   })
 
-  it('returns empty array if notifications query fails or is empty', async () => {
+  it('returns an empty list when there are none and surfaces query errors', async () => {
     mocks.notificationsData = []
     const emptyResult = await listUserNotifications('u123', 'admin')
     expect(emptyResult).toEqual([])
 
+    // A failed query is an error, not "no notifications".
     mocks.error = new Error('db error')
-    const errorResult = await listUserNotifications('u123', 'admin')
-    expect(errorResult).toEqual([])
+    await expect(listUserNotifications('u123', 'admin')).rejects.toThrow('db error')
   })
 
   it('marks a single notification as read by upserting into notification_reads', async () => {
@@ -166,7 +166,9 @@ describe('notifications service', () => {
       if (table === 'notifications') {
         return {
           select: vi.fn(() => ({
-            or: vi.fn(async () => ({ data: mocks.notificationsData, error: null })),
+            or: vi.fn(() => ({
+              order: vi.fn(() => ({ limit: vi.fn(async () => ({ data: mocks.notificationsData, error: null })) })),
+            })),
           })),
         }
       }
@@ -212,10 +214,10 @@ describe('notifications service', () => {
       link: '/attendance?course=web',
     })
 
-    expect(insertedRow.recipient_role).toBe('admin')
-    expect(insertedRow.title).toBe('Low Attendance')
-    expect(insertedRow.urgent).toBe(true)
-    expect(insertedRow.link).toBe('/attendance?course=web')
+    expect(insertedRow[0].recipient_role).toBe('admin')
+    expect(insertedRow[0].title).toBe('Low Attendance')
+    expect(insertedRow[0].urgent).toBe(true)
+    expect(insertedRow[0].link).toBe('/attendance?course=web')
   })
 
   it.each(['https://evil.example', '//evil.example', 'javascript:alert(1)', '/\\evil.example', ''])(
@@ -231,7 +233,7 @@ describe('notifications service', () => {
         })),
       }
       await createNotification({ title: 't', message: 'm', link })
-      expect(insertedRow.link).toBe('/')
+      expect(insertedRow[0].link).toBe('/')
     },
   )
 

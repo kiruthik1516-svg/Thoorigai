@@ -31,6 +31,7 @@ import { AttendanceMarking } from './AttendanceMarking'
 import { KpiCard } from '@/components/ui/KpiCard'
 import type { CourseCategory } from '@/lib/types'
 import { csvCell } from '@/lib/csv'
+import { indiaToday } from '@/lib/dates'
 
 export interface CourseOption {
   id: string
@@ -146,14 +147,14 @@ export function AttendanceClientView({
   }, [dateInput, selectedDate])
 
   const isTodaySelected = useMemo(() => {
-    const today = new Date().toISOString().slice(0, 10)
+    const today = indiaToday()
     return (dateInput || selectedDate) === today
   }, [dateInput, selectedDate])
 
   // Quick date change handlers (timezone-safe)
   const handleDateShift = (deltaDays: number) => {
     try {
-      const parts = (dateInput || new Date().toISOString().slice(0, 10)).split('-').map(Number)
+      const parts = (dateInput || indiaToday()).split('-').map(Number)
       const current = new Date(parts[0], parts[1] - 1, parts[2] + deltaDays)
       const y = current.getFullYear()
       const m = String(current.getMonth() + 1).padStart(2, '0')
@@ -167,7 +168,7 @@ export function AttendanceClientView({
   }
 
   const handleSetToday = () => {
-    const today = new Date().toISOString().slice(0, 10)
+    const today = indiaToday()
     setDateInput(today)
     navigateWithParams(courseInput, today)
   }

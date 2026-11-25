@@ -8,6 +8,22 @@ import { bulkScoreEntries, scoresByStudent, type Assessment, type AssessmentResu
 
 type Notify = { onError: (message: string | null) => void; onNotice: (message: string) => void }
 
+const PAGE_SIZE = 100
+
+/** Reads every page of a list endpoint (the API returns at most 100 rows per page). */
+async function fetchAllPages<T>(url: (page: number) => string, failure: string): Promise<T[]> {
+  const rows: T[] = []
+  for (let page = 1; page <= 100; page += 1) {
+    const response = await fetch(url(page))
+    const body = await response.json().catch(() => null)
+    if (!response.ok) throw new Error(apiErrorMessage(body, failure))
+    const data = ((body?.data ?? []) as T[]) || []
+    rows.push(...data)
+    if (data.length < PAGE_SIZE) break
+  }
+  return rows
+}
+
 /** Roster, results and score inputs for the assessment open in the Grading Studio. */
 export function useGradingStudio(assessment: Assessment | null, { onError, onNotice }: Notify) {
   const [students, setStudents] = useState<StudentOption[]>([])
@@ -17,21 +33,22 @@ export function useGradingStudio(assessment: Assessment | null, { onError, onNot
   const assessmentId = assessment?.id ?? null
   const courseId = assessment?.courseId ?? null
 
-  const loadResults = useCallback(async (id: string) => {
-    try {
-      const response = await fetch(`/api/assessments/${id}/results?page=1&pageSize=100`)
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(apiErrorMessage(errorData, 'Failed to fetch assessment results'))
+  const loadResults = useCallback(
+    async (id: string) => {
+      try {
+        const list = await fetchAllPages<AssessmentResult>(
+          (page) => `/api/assessments/${id}/results?page=${page}&pageSize=${PAGE_SIZE}`,
+          'Failed to fetch assessment results',
+        )
+        setResults(list)
+        setBulkScores(scoresByStudent(list))
+      } catch (error) {
+        setResults([])
+        onError(error instanceof Error ? error.message : 'Failed to fetch assessment results')
       }
-      const data = await response.json()
-      const list: AssessmentResult[] = data.data || []
-      setResults(list)
-      setBulkScores(scoresByStudent(list))
-    } catch {
-      setResults([])
-    }
-  }, [])
+    },
+    [onError],
+  )
 
   useEffect(() => {
     if (!assessmentId || !courseId) {
@@ -42,24 +59,26 @@ export function useGradingStudio(assessment: Assessment | null, { onError, onNot
     }
     const loadRoster = async () => {
       try {
-        const response = await fetch(`/api/students?course=${courseId}&page=1&pageSize=100`)
-        if (!response.ok) throw new Error('Failed to fetch students')
-        const data = (await response.json()) as { data?: Student[] }
+        const roster = await fetchAllPages<Student>(
+          (page) => `/api/students?course=${encodeURIComponent(courseId)}&page=${page}&pageSize=${PAGE_SIZE}`,
+          'Failed to fetch students',
+        )
         // /api/students returns camelCase students; the grading table and Google Forms import key on register_id.
         setStudents(
-          (data.data ?? []).map((student) => ({
+          roster.map((student) => ({
             id: student.id ?? String(student.registerId),
             register_id: student.registerId,
             name: student.name,
           })),
         )
-      } catch {
+      } catch (error) {
         setStudents([])
+        onError(error instanceof Error ? error.message : 'Failed to fetch students')
       }
     }
     void loadRoster()
     void loadResults(assessmentId)
-  }, [assessmentId, courseId, loadResults])
+  }, [assessmentId, courseId, loadResults, onError])
 
   const refreshResults = () => {
     if (assessmentId) void loadResults(assessmentId)

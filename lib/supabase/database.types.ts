@@ -277,6 +277,9 @@ export type Database = {
           student_name: string
           student_register_id: number
           trainer_name: string | null
+          revoke_reason: string | null
+          revoked_at: string | null
+          revoked_by: string | null
         }
         Insert: {
           certificate_id: string
@@ -293,6 +296,9 @@ export type Database = {
           student_name: string
           student_register_id: number
           trainer_name?: string | null
+          revoke_reason?: string | null
+          revoked_at?: string | null
+          revoked_by?: string | null
         }
         Update: {
           certificate_id?: string
@@ -309,6 +315,9 @@ export type Database = {
           student_name?: string
           student_register_id?: number
           trainer_name?: string | null
+          revoke_reason?: string | null
+          revoked_at?: string | null
+          revoked_by?: string | null
         }
         Relationships: [
           {
@@ -698,6 +707,9 @@ export type Database = {
           taxable_value: number | null
           transaction_id: string | null
           updated_at: string
+          cancel_reason: string | null
+          cancelled_at: string | null
+          cancelled_by: string | null
         }
         Insert: {
           amount: number
@@ -719,6 +731,9 @@ export type Database = {
           taxable_value?: number | null
           transaction_id?: string | null
           updated_at?: string
+          cancel_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
         }
         Update: {
           amount?: number
@@ -740,6 +755,9 @@ export type Database = {
           taxable_value?: number | null
           transaction_id?: string | null
           updated_at?: string
+          cancel_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
         }
         Relationships: [
           {
@@ -1013,6 +1031,33 @@ export type Database = {
       }
     }
     Functions: {
+      admin_cancel_payment: {
+        Args: { p_payment_id: string; p_reason: string }
+        Returns: Json
+      }
+      admin_revoke_certificate: {
+        Args: { p_certificate_uuid: string; p_reason: string }
+        Returns: undefined
+      }
+      india_today: { Args: never; Returns: string }
+      issue_certificate: {
+        Args: {
+          p_custom_note: string | null
+          p_director_name: string | null
+          p_end_date: string | null
+          p_issue_date: string | null
+          p_skills: string[]
+          p_start_date: string | null
+          p_student_register_id: number
+          p_trainer_name: string | null
+          p_verification_code: string
+        }
+        Returns: Json
+      }
+      profile_display_names: {
+        Args: { p_ids: string[] }
+        Returns: { full_name: string | null; id: string; role: string }[]
+      }
       admin_change_profile_role: {
         Args: { p_role: string; p_user_id: string }
         Returns: undefined

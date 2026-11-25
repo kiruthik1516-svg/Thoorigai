@@ -46,6 +46,8 @@ const routeGetUser = {
 // Files with a reviewed need for the service role (F-30). Keep this list short.
 const serviceRoleAllowed = [
   'app/api/course-materials/route.ts',
+  // Signs a short-lived URL only after the caller's own client (RLS) has read the material.
+  'app/api/course-materials/download/route.ts',
   'app/api/invoices/**/download/route.ts',
   'app/api/ready/route.ts',
   'app/api/admin/users/route.ts',

@@ -92,7 +92,8 @@ describe('computeReportMetrics', () => {
       ['UPI', 400, 1],
     ])
     expect(metrics.acquisitionChannels[0]).toEqual({ channel: 'Direct Walk-in', students: 2, sharePct: 67 })
-    expect(metrics.gender).toMatchObject({ femalePct: 33, malePct: 33, otherPct: 33 })
+    // The third student has no gender recorded: shown as "not recorded", not as "Other".
+    expect(metrics.gender).toMatchObject({ femalePct: 33, malePct: 33, otherPct: 0, unspecifiedPct: 33 })
     expect(metrics.courseCounts).toEqual({ 'Full Stack': 2, Design: 1 })
     expect([metrics.fullyPaid, metrics.pending]).toEqual([1, 2])
   })
