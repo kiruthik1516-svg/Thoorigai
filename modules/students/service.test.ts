@@ -8,6 +8,10 @@ const mocks = vi.hoisted(() => ({
   studentFromRow: vi.fn(),
   createStudentWithPaymentAtomic: vi.fn(),
   getCurrentProfile: vi.fn(),
+  error: null as null | { code?: string; message?: string },
+  updateSpy: vi.fn(),
+  createNotification: vi.fn(),
+  notifyCourseTrainers: vi.fn(),
 }))
 vi.mock('server-only', () => ({}))
 vi.mock('@/lib/supabase/server', () => ({
@@ -18,8 +22,17 @@ vi.mock('@/lib/supabase/server', () => ({
         eq: () => query,
         order: () => query,
         limit: () => query,
-        maybeSingle: async () => ({ data: mocks.rows[table] ?? null, error: null }),
-        then: (onfulfilled: any) => Promise.resolve({ data: mocks.rows[table] ?? [], error: null }).then(onfulfilled),
+        update: (values: unknown) => {
+          mocks.updateSpy(values)
+          return query
+        },
+        delete: () => query,
+        maybeSingle: async () =>
+          mocks.error ? { data: null, error: mocks.error } : { data: mocks.rows[table] ?? null, error: null },
+        then: (onfulfilled: any) =>
+          Promise.resolve(
+            mocks.error ? { data: null, error: mocks.error } : { data: mocks.rows[table] ?? [], error: null },
+          ).then(onfulfilled),
       }
       return query
     },
@@ -39,8 +52,20 @@ vi.mock('@/lib/server-data', () => ({
 }))
 vi.mock('./repository', () => ({ createStudentWithPaymentAtomic: mocks.createStudentWithPaymentAtomic }))
 vi.mock('@/lib/auth/current-profile', () => ({ getCurrentProfile: mocks.getCurrentProfile }))
+vi.mock('@/modules/notifications/service', () => ({
+  createNotification: mocks.createNotification,
+  notifyCourseTrainers: mocks.notifyCourseTrainers,
+}))
 
-import { createStudent, getStudentAcademicHistory, getStudentDetail, listStudentPage } from './service'
+import {
+  createStudent,
+  deleteStudent,
+  getStudentAcademicHistory,
+  getStudentDetail,
+  listStudentPage,
+  updateStudent,
+} from './service'
+import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '@/lib/http/errors'
 
 const input = {
   name: 'Asha',
@@ -57,6 +82,7 @@ describe('student service', () => {
     vi.clearAllMocks()
     mocks.role = 'staff'
     mocks.rows = {}
+    mocks.error = null
     mocks.getCurrentProfile.mockImplementation(async () => ({ id: 'user-1', role: mocks.role, fullName: 'Staff' }))
     mocks.studentFromRow.mockImplementation((row) => ({ registerId: row.register_id, name: row.name, paid: 0 }))
     mocks.listStudents.mockResolvedValue({ data: [], totalCount: 0 })
@@ -202,5 +228,126 @@ describe('student service', () => {
     mocks.rows.students = null
     const emptyHistory = await getStudentAcademicHistory(99)
     expect(emptyHistory).toEqual({ attendance: [], assessments: [] })
+  })
+})
+
+describe('student edits, deletes and enrolment rules', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mocks.role = 'admin'
+    mocks.rows = {}
+    mocks.error = null
+    mocks.getCurrentProfile.mockImplementation(async () => ({ id: 'user-1', role: mocks.role, fullName: 'User' }))
+    mocks.studentFromRow.mockImplementation((row) => ({
+      registerId: row.register_id,
+      name: row.name,
+      course: row.course,
+      paid: 0,
+      total: 500,
+    }))
+    mocks.createStudentWithPaymentAtomic.mockResolvedValue({
+      student: { id: 1, register_id: 7, name: 'Asha', course: 'Web', paid: 0, status: 'Pending' },
+      initial_payment: null,
+    })
+  })
+
+  it('lets staff edit profile fields but never returns fee figures to them', async () => {
+    mocks.role = 'staff'
+    mocks.rows.students = { register_id: 7, name: 'Asha K' }
+    const updated = await updateStudent(7, { name: 'Asha K', altPhone: '9111111111', knowledgeTags: ['SQL'] })
+    expect(mocks.updateSpy).toHaveBeenCalledWith({
+      name: 'Asha K',
+      alt_phone: '9111111111',
+      knowledge_tags: ['SQL'],
+    })
+    expect(updated).toMatchObject({ registerId: 7, total: 0, paid: 0, moneyHidden: true })
+  })
+
+  it('only lets admins change the fee, and stores it in paise', async () => {
+    mocks.role = 'staff'
+    await expect(updateStudent(7, { total: 100 })).rejects.toBeInstanceOf(ForbiddenError)
+    expect(mocks.updateSpy).not.toHaveBeenCalled()
+
+    mocks.role = 'admin'
+    mocks.rows.students = { register_id: 7, name: 'Asha' }
+    const updated = await updateStudent(7, { total: 500 })
+    expect(mocks.updateSpy).toHaveBeenCalledWith({ total: 50000 })
+    expect(updated).toMatchObject({ total: 500 })
+    expect(updated).not.toHaveProperty('moneyHidden')
+  })
+
+  it('rejects edits from accounts without permission and reports a missing student', async () => {
+    mocks.role = 'pending'
+    await expect(updateStudent(7, { name: 'X' })).rejects.toBeInstanceOf(ForbiddenError)
+    mocks.role = 'admin'
+    mocks.rows.students = null
+    await expect(updateStudent(99, { name: 'X' })).rejects.toBeInstanceOf(NotFoundError)
+  })
+
+  it.each([
+    [{ code: '42501', message: 'Only admins can change a student fee' }, ForbiddenError],
+    [{ message: 'COURSE_NOT_FOUND' }, ValidationError],
+    [{ message: 'FEE_REQUIRED' }, ValidationError],
+    [{ code: '23514', message: 'FEE_BELOW_PAID' }, ValidationError],
+    [{ message: 'PAYMENT_DATE_IN_FUTURE' }, ValidationError],
+  ])('maps database error %j to a user-facing error', async (error, expected) => {
+    mocks.error = error
+    await expect(updateStudent(7, { name: 'X' })).rejects.toBeInstanceOf(expected)
+  })
+
+  it('rethrows database errors it does not recognise', async () => {
+    mocks.error = { code: 'XX000', message: 'boom' }
+    await expect(updateStudent(7, { name: 'X' })).rejects.toMatchObject({ message: 'boom' })
+  })
+
+  it('deletes a student only for admins and explains why invoices block it', async () => {
+    mocks.role = 'staff'
+    await expect(deleteStudent(7)).rejects.toBeInstanceOf(ForbiddenError)
+
+    mocks.role = 'admin'
+    mocks.rows.students = [{ id: 's1' }]
+    await expect(deleteStudent(7)).resolves.toEqual({ deleted: true, registerId: 7 })
+
+    mocks.rows.students = []
+    await expect(deleteStudent(7)).rejects.toBeInstanceOf(NotFoundError)
+
+    mocks.error = { code: '23503', message: 'violates foreign key' }
+    await expect(deleteStudent(7)).rejects.toBeInstanceOf(ConflictError)
+
+    mocks.error = { message: 'COURSE_NOT_FOUND' }
+    await expect(deleteStudent(7)).rejects.toBeInstanceOf(ValidationError)
+  })
+
+  it('requires an admin to enter a fee and hides money from staff when enrolling', async () => {
+    mocks.role = 'admin'
+    await expect(createStudent({ ...input, total: 0 })).rejects.toThrow('Enter the tuition fee')
+
+    mocks.role = 'staff'
+    const result = await createStudent({ ...input, total: 0 })
+    expect(result.data).toMatchObject({ registerId: 7, total: 0, paid: 0, moneyHidden: true })
+  })
+
+  it('tells admins about an enrolment and only the trainers of that course otherwise', async () => {
+    mocks.role = 'admin'
+    await createStudent(input)
+    expect(mocks.createNotification).toHaveBeenCalledWith(
+      expect.objectContaining({ recipientRole: 'admin', title: 'New Student Enrolled', entityType: 'student' }),
+      'user-1',
+    )
+    expect(mocks.notifyCourseTrainers).toHaveBeenCalledWith(
+      'Web',
+      expect.objectContaining({ title: 'New Student Enrolled' }),
+      'user-1',
+    )
+  })
+
+  it('maps enrolment database errors', async () => {
+    mocks.role = 'admin'
+    mocks.createStudentWithPaymentAtomic.mockRejectedValueOnce({ code: '42501', message: 'not assigned' })
+    await expect(createStudent(input)).rejects.toBeInstanceOf(ForbiddenError)
+    mocks.createStudentWithPaymentAtomic.mockRejectedValueOnce({ message: 'COURSE_NOT_FOUND' })
+    await expect(createStudent(input)).rejects.toBeInstanceOf(ValidationError)
+    mocks.createStudentWithPaymentAtomic.mockRejectedValueOnce({ message: 'INITIAL_PAYMENT_EXCEEDS_TOTAL' })
+    await expect(createStudent(input)).rejects.toBeInstanceOf(ValidationError)
   })
 })

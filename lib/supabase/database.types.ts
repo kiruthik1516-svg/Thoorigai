@@ -271,15 +271,15 @@ export type Database = {
           id: string
           issue_date: string
           issued_at: string
+          revoke_reason: string | null
+          revoked_at: string | null
+          revoked_by: string | null
           skills: string[]
           start_date: string | null
           student_id: string
           student_name: string
           student_register_id: number
           trainer_name: string | null
-          revoke_reason: string | null
-          revoked_at: string | null
-          revoked_by: string | null
         }
         Insert: {
           certificate_id: string
@@ -290,15 +290,15 @@ export type Database = {
           id?: string
           issue_date?: string
           issued_at?: string
+          revoke_reason?: string | null
+          revoked_at?: string | null
+          revoked_by?: string | null
           skills?: string[]
           start_date?: string | null
           student_id: string
           student_name: string
           student_register_id: number
           trainer_name?: string | null
-          revoke_reason?: string | null
-          revoked_at?: string | null
-          revoked_by?: string | null
         }
         Update: {
           certificate_id?: string
@@ -309,17 +309,24 @@ export type Database = {
           id?: string
           issue_date?: string
           issued_at?: string
+          revoke_reason?: string | null
+          revoked_at?: string | null
+          revoked_by?: string | null
           skills?: string[]
           start_date?: string | null
           student_id?: string
           student_name?: string
           student_register_id?: number
           trainer_name?: string | null
-          revoke_reason?: string | null
-          revoked_at?: string | null
-          revoked_by?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "certificates_revoked_by_fkey"
+            columns: ["revoked_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "certificates_student_id_fkey"
             columns: ["student_id"]
@@ -689,6 +696,9 @@ export type Database = {
       payments: {
         Row: {
           amount: number
+          cancel_reason: string | null
+          cancelled_at: string | null
+          cancelled_by: string | null
           cgst: number
           created_at: string
           custom_note: string | null
@@ -707,12 +717,12 @@ export type Database = {
           taxable_value: number | null
           transaction_id: string | null
           updated_at: string
-          cancel_reason: string | null
-          cancelled_at: string | null
-          cancelled_by: string | null
         }
         Insert: {
           amount: number
+          cancel_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
           cgst?: number
           created_at?: string
           custom_note?: string | null
@@ -731,12 +741,12 @@ export type Database = {
           taxable_value?: number | null
           transaction_id?: string | null
           updated_at?: string
-          cancel_reason?: string | null
-          cancelled_at?: string | null
-          cancelled_by?: string | null
         }
         Update: {
           amount?: number
+          cancel_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
           cgst?: number
           created_at?: string
           custom_note?: string | null
@@ -755,11 +765,15 @@ export type Database = {
           taxable_value?: number | null
           transaction_id?: string | null
           updated_at?: string
-          cancel_reason?: string | null
-          cancelled_at?: string | null
-          cancelled_by?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "payments_cancelled_by_fkey"
+            columns: ["cancelled_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "payments_student_id_fkey"
             columns: ["student_id"]
@@ -1035,31 +1049,12 @@ export type Database = {
         Args: { p_payment_id: string; p_reason: string }
         Returns: Json
       }
-      admin_revoke_certificate: {
-        Args: { p_certificate_uuid: string; p_reason: string }
-        Returns: undefined
-      }
-      india_today: { Args: never; Returns: string }
-      issue_certificate: {
-        Args: {
-          p_custom_note: string | null
-          p_director_name: string | null
-          p_end_date: string | null
-          p_issue_date: string | null
-          p_skills: string[]
-          p_start_date: string | null
-          p_student_register_id: number
-          p_trainer_name: string | null
-          p_verification_code: string
-        }
-        Returns: Json
-      }
-      profile_display_names: {
-        Args: { p_ids: string[] }
-        Returns: { full_name: string | null; id: string; role: string }[]
-      }
       admin_change_profile_role: {
         Args: { p_role: string; p_user_id: string }
+        Returns: undefined
+      }
+      admin_revoke_certificate: {
+        Args: { p_certificate_uuid: string; p_reason: string }
         Returns: undefined
       }
       admin_set_user_disabled: {
@@ -1126,8 +1121,31 @@ export type Database = {
         Args: { p_actor: string; p_key: string; p_response: Json }
         Returns: undefined
       }
+      india_today: { Args: never; Returns: string }
       is_current_user_admin: { Args: never; Returns: boolean }
+      issue_certificate: {
+        Args: {
+          p_custom_note: string
+          p_director_name: string
+          p_end_date: string
+          p_issue_date: string
+          p_skills: string[]
+          p_start_date: string
+          p_student_register_id: number
+          p_trainer_name: string
+          p_verification_code: string
+        }
+        Returns: Json
+      }
       ordinal_label: { Args: { p_n: number }; Returns: string }
+      profile_display_names: {
+        Args: { p_ids: string[] }
+        Returns: {
+          full_name: string
+          id: string
+          role: string
+        }[]
+      }
       public_verify_document: {
         Args: { p_code: string }
         Returns: {

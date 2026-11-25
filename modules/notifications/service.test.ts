@@ -16,6 +16,7 @@ import {
   markNotificationRead,
   markAllNotificationsRead,
   createNotification,
+  notifyCourseTrainers,
   isInternalLink,
 } from './service'
 
@@ -240,5 +241,74 @@ describe('notifications service', () => {
   it('accepts encoded invoice links', () => {
     expect(isInternalLink('/invoices/TAI%2F2026%2FINV000037')).toBe(true)
     expect(isInternalLink('/settings/users?filter=pending')).toBe(true)
+  })
+})
+
+describe('notifying the trainers of a course', () => {
+  function clientWith(courses: unknown, options: { coursesError?: Error; insertError?: Error } = {}) {
+    const inserted: any[] = []
+    mocks.client = {
+      from: vi.fn((table: string) => {
+        if (table === 'courses') {
+          return {
+            select: () => ({
+              ilike: async () => ({ data: courses, error: options.coursesError ?? null }),
+            }),
+          }
+        }
+        return {
+          insert: async (rows: any[]) => {
+            inserted.push(...rows)
+            return { error: options.insertError ?? null }
+          },
+        }
+      }),
+    }
+    return inserted
+  }
+
+  const notice = { title: 'New Student Enrolled', message: 'Asha enrolled', link: '/students/7', entityType: 'student' }
+
+  it('writes one notification per assigned trainer and skips the person who acted', async () => {
+    const inserted = clientWith([
+      { id: 'c1', course_trainers: [{ trainer_id: 't1' }, { trainer_id: 't2' }, { trainer_id: 'actor' }] },
+    ])
+    await notifyCourseTrainers('Web (Dev)', notice, 'actor')
+    expect(inserted.map((row) => row.user_id).sort()).toEqual(['t1', 't2'])
+    expect(inserted[0]).toMatchObject({ recipient_role: 'staff', title: 'New Student Enrolled', link: '/students/7' })
+  })
+
+  it('writes nothing when nobody is assigned to the course', async () => {
+    const inserted = clientWith([{ id: 'c1', course_trainers: [] }])
+    await notifyCourseTrainers('Web', notice)
+    expect(inserted).toEqual([])
+  })
+
+  it('never fails the request when the trainer lookup or the insert fails', async () => {
+    clientWith(null, { coursesError: new Error('lookup failed') })
+    await expect(notifyCourseTrainers('Web', notice)).resolves.toBeUndefined()
+
+    const inserted = clientWith([{ id: 'c1', course_trainers: [{ trainer_id: 't1' }] }], {
+      insertError: new Error('insert failed'),
+    })
+    await expect(notifyCourseTrainers('Web', notice)).resolves.toBeUndefined()
+    expect(inserted).toHaveLength(1)
+    await expect(createNotification({ title: 't', message: 'm' })).resolves.toBeUndefined()
+  })
+
+  it('reports read-marker failures instead of hiding them', async () => {
+    mocks.client = {
+      from: vi.fn((table: string) =>
+        table === 'notification_reads'
+          ? { upsert: async () => ({ error: new Error('upsert failed') }) }
+          : {
+              select: () => ({
+                or: () => ({ order: () => ({ limit: async () => ({ data: [{ id: 'n1' }], error: null }) }) }),
+              }),
+            },
+      ),
+    }
+    await expect(markNotificationRead('u1', 'n1')).rejects.toThrow('upsert failed')
+    await expect(markAllNotificationsRead('u1', 'staff')).rejects.toThrow('upsert failed')
   })
 })

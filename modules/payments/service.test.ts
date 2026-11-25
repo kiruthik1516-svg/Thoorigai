@@ -9,10 +9,17 @@ const mocks = vi.hoisted(() => ({
   paymentFromRow: vi.fn(),
   recordPaymentAtomic: vi.fn(),
   getCurrentProfile: vi.fn(),
+  rpcSpy: vi.fn(),
+  rpcResult: { data: null, error: null } as { data: unknown; error: null | { code?: string; message: string } },
+  createNotification: vi.fn(),
 }))
 vi.mock('server-only', () => ({}))
 vi.mock('@/lib/supabase/server', () => ({
   createClient: async () => ({
+    rpc: async (name: string, args: unknown) => {
+      mocks.rpcSpy(name, args)
+      return mocks.rpcResult
+    },
     from: (table: string) => {
       const query: any = {
         select: () => query,
@@ -30,8 +37,10 @@ vi.mock('@/lib/supabase/server', () => ({
 vi.mock('@/lib/server-data', () => ({ listPayments: mocks.listPayments, paymentFromRow: mocks.paymentFromRow }))
 vi.mock('./repository', () => ({ recordPaymentAtomic: mocks.recordPaymentAtomic }))
 vi.mock('@/lib/auth/current-profile', () => ({ getCurrentProfile: mocks.getCurrentProfile }))
+vi.mock('@/modules/notifications/service', () => ({ createNotification: mocks.createNotification }))
 
-import { createPayment, getPaymentByInvoice, listPaymentPage } from './service'
+import { cancelPayment, createPayment, getPaymentByInvoice, listPaymentPage } from './service'
+import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '@/lib/http/errors'
 
 const input = { studentId: 7, amount: 100, method: 'UPI' }
 const stored = {
@@ -174,5 +183,56 @@ describe('payment service', () => {
   it('re-throws unexpected payment RPC errors', async () => {
     mocks.recordPaymentAtomic.mockRejectedValueOnce(new Error('DATABASE_CONNECTION_LOST'))
     await expect(createPayment(input, 'payment-test-err')).rejects.toThrow('DATABASE_CONNECTION_LOST')
+  })
+})
+
+describe('cancelling an invoice', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mocks.role = 'admin'
+    mocks.getCurrentProfile.mockImplementation(async () => ({ id: 'admin-1', role: mocks.role, fullName: 'Admin' }))
+    mocks.rpcResult = { data: { payment: { id: 'RCPT-9', invoice: 'TAI/2026/INV000009' } }, error: null }
+  })
+
+  it('cancels through the database function and tells the admins', async () => {
+    await expect(cancelPayment({ paymentId: 'RCPT-9', reason: 'Entered twice' })).resolves.toEqual({
+      cancelled: true,
+      paymentId: 'RCPT-9',
+      invoice: 'TAI/2026/INV000009',
+    })
+    expect(mocks.rpcSpy).toHaveBeenCalledWith('admin_cancel_payment', {
+      p_payment_id: 'RCPT-9',
+      p_reason: 'Entered twice',
+    })
+    expect(mocks.createNotification).toHaveBeenCalledWith(
+      expect.objectContaining({
+        recipientRole: 'admin',
+        title: 'Invoice Cancelled',
+        link: '/invoices/TAI%2F2026%2FINV000009',
+      }),
+      'admin-1',
+    )
+  })
+
+  it('is admin only', async () => {
+    mocks.role = 'staff'
+    await expect(cancelPayment({ paymentId: 'RCPT-9', reason: 'Entered twice' })).rejects.toBeInstanceOf(ForbiddenError)
+    expect(mocks.rpcSpy).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    ['PAYMENT_NOT_FOUND', undefined, NotFoundError],
+    ['PAYMENT_ALREADY_CANCELLED', 'P0001', ConflictError],
+    ['CANCEL_REASON_REQUIRED', '22023', ValidationError],
+    ['Only admins can cancel payments', '42501', ForbiddenError],
+  ])('turns database error %s into a clear message', async (message, code, expected) => {
+    mocks.rpcResult = { data: null, error: { message, code } }
+    await expect(cancelPayment({ paymentId: 'RCPT-9', reason: 'Entered twice' })).rejects.toBeInstanceOf(expected)
+    expect(mocks.createNotification).not.toHaveBeenCalled()
+  })
+
+  it('rejects a payment dated in the future with a clear message', async () => {
+    mocks.recordPaymentAtomic.mockRejectedValueOnce(new Error('PAYMENT_DATE_IN_FUTURE'))
+    await expect(createPayment(input, 'key-1')).rejects.toBeInstanceOf(ValidationError)
   })
 })
