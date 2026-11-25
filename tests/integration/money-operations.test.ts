@@ -10,6 +10,8 @@ const requiredEnv = [
 ] as const
 const missingEnv = requiredEnv.filter((name) => !process.env[name])
 const shouldSkip = missingEnv.length > 0
+// Enrolment only accepts a course that exists; use one from the seed instead of creating one.
+const COURSE = 'Professional Course'
 
 describe.skipIf(shouldSkip)('atomic money operations (local Supabase)', () => {
   let userClient: SupabaseClient
@@ -26,11 +28,6 @@ describe.skipIf(shouldSkip)('atomic money operations (local Supabase)', () => {
       password: process.env.SUPABASE_TEST_USER_PASSWORD!,
     })
     if (error) throw error
-    // Enrolment only accepts a course that exists, so the fixtures' course is created up front.
-    const { error: courseError } = await adminClient
-      .from('courses')
-      .upsert({ id: 'integration-money', name: 'Integration', fee: 10_000 }, { onConflict: 'id' })
-    if (courseError) throw courseError
   })
 
   afterAll(async () => {
@@ -49,8 +46,6 @@ describe.skipIf(shouldSkip)('atomic money operations (local Supabase)', () => {
       }
     }
     for (const key of idempotencyKeys) await adminClient.from('idempotency_keys').delete().eq('idempotency_key', key)
-    // Best effort: the course can only go once no student refers to it.
-    await adminClient.from('courses').delete().eq('id', 'integration-money')
     // Verification records are immutable by design. test:ci uses a fresh local
     // database reset for each run, so test documents are isolated by that reset.
   })
@@ -60,7 +55,7 @@ describe.skipIf(shouldSkip)('atomic money operations (local Supabase)', () => {
       p_student: {
         name: 'Atomic integration fixture',
         phone,
-        course: 'Integration',
+        course: COURSE,
         batch: '2026-09-28',
         total,
         knowledge_tags: [],
@@ -140,7 +135,7 @@ describe.skipIf(shouldSkip)('atomic money operations (local Supabase)', () => {
       p_student: {
         name: 'Must roll back',
         phone,
-        course: 'Integration',
+        course: COURSE,
         batch: '2026-09-28',
         total: 10_000,
         knowledge_tags: [],
